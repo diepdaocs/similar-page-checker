@@ -109,4 +109,4 @@ class SimilarityChecking(Resource):
         return jsonify(result)
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=False, host='107.170.109.238', port=8888)
