@@ -1,5 +1,4 @@
 Cython>=0.23.4
-numpy>=1.10.1
 requests>=2.8.1
 numpy>=1.10.1
 lxml>=3.5.0
