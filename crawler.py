@@ -12,7 +12,7 @@ class PageCrawler(object):
     def process(self, urls):
         result = {}
         # use multi thread to crawl pages
-        pool = Pool(cpu_count() * 3)
+        pool = Pool(cpu_count() * 6)
         pool_results = pool.map(self._crawl_page, urls)
         # get results
         for r in pool_results:

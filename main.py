@@ -42,7 +42,8 @@ ns = api.namespace('similarity_checker', 'Similarity Checker')
 @ns.route('/')
 class SimilarityChecking(Resource):
     """Checking similarity between main web page and other web pages"""
-    @api.doc(params={'main_url': 'Main url for checking similarity', 'sub_urls': 'Sub urls to be checked'})
+    @api.doc(params={'main_url': 'Main url for checking similarity', 'sub_urls': 'Sub urls to be checked '
+                                                                                 '(urls are separated by comma)'})
     @api.response(200, 'Success', model=sim_check_response)
     def post(self):
         """Post web pages to check similarity percentage"""
