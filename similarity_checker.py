@@ -1,11 +1,90 @@
+import math
+from fuzzywuzzy import fuzz
 from utils import get_logger
 from elasticsearch.helpers import bulk
 import uuid
 import traceback
+from nltk import wordpunct_tokenize
+import string
 
 
 def pre_process_urls(urls):
     return [url.strip() for url in urls]
+
+
+def tokenize_and_normalize_content(content):
+    result = []
+    for word in wordpunct_tokenize(content):
+        word = word.strip(string.punctuation).lower()
+        if word:
+            result.append(word)
+
+    return result
+
+
+def cosine_similarity(tokens_1, tokens_2):
+    vec_1 = {w: 1 for w in tokens_1}
+    vec_2 = {w: 1 for w in tokens_2}
+    intersection = set(vec_1.keys()) & set(vec_2.keys())
+    numerator = sum([vec_1[x] * vec_2[x] for x in intersection])
+    sum_1 = sum([vec_1[x]**2 for x in vec_1.keys()])
+    sum_2 = sum([vec_2[x]**2 for x in vec_2.keys()])
+    denominator = math.sqrt(sum_1) * math.sqrt(sum_2)
+
+    if not denominator:
+        return 0.0
+    else:
+        return round(float(numerator) / denominator * 100, 2)
+
+
+def jaccard_similarity(tokens_1, tokens_2):
+    tokens_1 = set(tokens_1)
+    tokens_2 = set(tokens_2)
+    return round(float(len(tokens_1 & tokens_2)) / len(tokens_1 | tokens_2) * 100, 2)
+
+
+def fuzzy_similarity(tokens_1, tokens_2):
+    return fuzz.token_sort_ratio(' '.join(tokens_1), ' '.join(tokens_2))
+
+
+class SimilarityChecker(object):
+    def __init__(self, content_getter, similarity):
+        self.similarity = similarity
+        self.content_getter = content_getter
+
+    def process(self, main_url, sub_urls):
+        result = []
+        # pre process urls
+        sub_urls = pre_process_urls(sub_urls)
+        main_url = pre_process_urls([main_url])[0]
+        urls = [main_url] + sub_urls
+        # crawl and extract page content
+        pages = self.content_getter.process(urls)
+        # verify main page
+        main_page = pages[main_url]['content']
+        if not main_page:
+            result = []
+            return result
+        # tokenize content into words
+        for url, page in pages.items():
+            pages[url]['content'] = tokenize_and_normalize_content(page['content'])
+
+        # check similarity
+        main_tokens = pages[main_url]['content']
+        for url, page in pages.items():
+            if url not in sub_urls:
+                continue
+            sub_tokens = page['content']
+            if not sub_tokens:
+                result.append([url, 'Page not found'])
+                continue
+
+            sim = self.similarity(main_tokens, sub_tokens)
+            result.append([url, sim])
+
+        # sort result
+        result.sort(key=lambda x: x[1], reverse=True)
+        return result
 
 
 class CosineSimilarity(object):
@@ -82,7 +161,7 @@ class CosineSimilarity(object):
         try:
             self.create_index()
             self.index_pages(pages)
-            result = self.similarity(pages[main_url]['content'], main_url, sub_urls)
+            result = self.similarity(pages[main_url]['content'], sub_urls)
             self.delete_index()
         except Exception as ex:
             tb = traceback.format_exc()
@@ -104,7 +183,7 @@ class CosineSimilarity(object):
 
         return result
 
-    def similarity(self, content, main_url, sub_urls):
+    def similarity(self, content, sub_urls):
         result = []
         query = {
             'query': {
@@ -130,4 +209,3 @@ class CosineSimilarity(object):
 
         self.logger.info('Similarity info: %s' % result)
         return result
-

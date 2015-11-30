@@ -4,7 +4,7 @@ from flask import request, Flask, jsonify
 from crawler import PageCrawler
 from extractor import DragnetPageExtractor
 from content_getter import ContentGetter
-from similarity_checker import CosineSimilarity
+from similarity_checker import CosineSimilarity, SimilarityChecker, jaccard_similarity, cosine_similarity, fuzzy_similarity
 from utils import logger_level, INFO, DEBUG
 from elasticsearch import Elasticsearch
 from flask_restplus import Api, Resource, fields
@@ -20,7 +20,7 @@ es_client = Elasticsearch()
 crawler = PageCrawler()
 extractor = DragnetPageExtractor()
 content_getter = ContentGetter(crawler=crawler, extractor=extractor)
-similarity_checker = CosineSimilarity(content_getter=content_getter, es_client=es_client)
+similarity_checker = SimilarityChecker(content_getter=content_getter, similarity=jaccard_similarity)
 
 
 sim_check_params = api.model('sim_check_params', {
@@ -36,14 +36,18 @@ sim_check_response = api.model('sim_check_response', {
     'similarity': fields.String(default="""[[url1, matching_percentage1], [url2, matching_percentage2], [url3, matching_percentage3], [url4, "Page not found]"], [url4, "Page not found]"],...]""")
 })
 
-ns = api.namespace('similarity_checker', 'Similarity Checker')
+ns1 = api.namespace('similarity_checker', 'Similarity Checker')
+
+distance_metrics = ['jaccard', 'cosine', 'fuzzy']
 
 
-@ns.route('/')
-class SimilarityChecking(Resource):
+@ns1.route('/')
+class SimilarityCheckerResource(Resource):
     """Checking similarity between main web page and other web pages"""
-    @api.doc(params={'main_url': 'Main url for checking similarity', 'sub_urls': 'Sub urls to be checked '
-                                                                                 '(urls are separated by comma)'})
+    @api.doc(params={'distance_metric': 'Distance metric to be used (currently support %s)'
+                                        % ', '.join(distance_metrics),
+                     'main_url': 'Main url for checking similarity',
+                     'sub_urls': 'Sub urls to be checked (urls are separated by comma)'})
     @api.response(200, 'Success', model=sim_check_response)
     def post(self):
         """Post web pages to check similarity percentage"""
@@ -52,6 +56,19 @@ class SimilarityChecking(Resource):
             'similarity': []
         }
         # get request params
+        distance_metric = request.values.get('distance_metric', '')
+        if not distance_metric or distance_metric not in distance_metrics:
+            result['error'] = 'distance_metric must be in %s' % ', '.join(distance_metrics)
+
+        elif distance_metric == 'jaccard':
+            similarity_checker.similarity = jaccard_similarity
+
+        elif distance_metric == 'cosine':
+            similarity_checker.similarity = cosine_similarity
+
+        elif distance_metric == 'fuzzy':
+            similarity_checker.similarity = fuzzy_similarity
+
         main_url = request.values.get('main_url', '')
         sub_url_string = request.values.get('sub_urls', '')
         strip_chars = ' "\''
@@ -66,9 +83,13 @@ class SimilarityChecking(Resource):
         if type(sub_urls) is not list:
             result['error'] = 'sub_urls must be in array type'
 
+        # check similarity
         if not result['error']:
-            # check similarity
-            result['similarity'] = similarity_checker.process(main_url=main_url, sub_urls=sub_urls)
+            sims = similarity_checker.process(main_url=main_url, sub_urls=sub_urls)
+            if sims:
+                result['similarity'] = sims
+            else:
+                result['error'] = 'Main page is empty'
 
         return jsonify(result)
 
@@ -105,9 +126,67 @@ class SimilarityChecking(Resource):
 
         if not result['error']:
             # check similarity
-            result['similarity'] = similarity_checker.process(main_url=main_url, sub_urls=sub_urls)
+            sims = similarity_checker.process(main_url=main_url, sub_urls=sub_urls)
+            if sims:
+                result['similarity'] = sims
+            else:
+                result['error'] = 'Main page is empty'
 
         return jsonify(result)
 
+
+page_extractor_response = api.model('page_extractor_response', {
+    'error': fields.String(default='False (boolean) if request successfully, else return error message (string)'),
+    'pages': fields.String(default=[
+        [
+            'url1',
+            {
+                'content': 'content1',
+                'error': ''
+            }
+        ],
+        [
+            'url2',
+            {
+                'content': 'content2',
+                'error': ''
+            }
+        ],
+        [
+            'url3',
+            {
+                'content': 'content3',
+                'error': ''
+            }
+        ]
+    ])
+})
+
+ns2 = api.namespace('page_extractor', 'Page Extractor')
+
+
+@ns2.route('/extractor')
+class PageExtractorResource(Resource):
+    """Extract content from crawled web pages"""
+    @api.doc(params={'urls': 'The urls to be extracted content (If many urls, separate by comma)'})
+    @api.response(200, 'Success', model='page_extractor_response')
+    def get(self):
+        """Post web pages to extract content"""
+        result = {
+            'error': False,
+            'pages': []
+        }
+        urls = request.values.get('urls', '')
+        strip_chars = ' "\''
+        urls = [u.strip(strip_chars) for u in urls.split(',') if u.strip(strip_chars)]
+        if not urls:
+            result['error'] = 'urls must not be empty'
+        if not result['error']:
+            result['pages'] = [(url, page) for url, page in content_getter.process(urls).items()]
+
+        return jsonify(result)
+
+
 if __name__ == '__main__':
     app.run(debug=False, host='107.170.109.238', port=8888)
+    # app.run(debug=True, port=8888)

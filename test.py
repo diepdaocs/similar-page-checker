@@ -24,7 +24,12 @@ class MyTestCase(unittest.TestCase):
             "http://vnexpress.net/tin-tuc/thoi-su/chinh-sach-moi-co-hieu-luc-tu-thang-12-3319900.html",
             "http://vnexpress.net/tin-tuc/thoi-su/canh-sat-co-dong-bi-dam-trong-thuong-khi-chong-dua-xe-3319658.html",
             "http://vnexpress.net/tin-tuc/thoi-su/oto-tai-dam-xe-cong-nong-5-nguoi-tu-vong-3319396.html",
-            "http://vnexpress.net/tin-tuc/the-gioi/cuoc-song-do-day/chu-quan-cafe-tho-nhi-ky-tang-tien-cho-gia-dinh-phi-cong-nga-3319891.html"
+            "http://vnexpress.net/tin-tuc/the-gioi/cuoc-song-do-day/chu-quan-cafe-tho-nhi-ky-tang-tien-cho-gia-dinh-phi-cong-nga-3319891.html",
+            "http://thethao.thanhnien.com.vn/bong-da-viet-nam/o-singapore-co-dot-duoc-cung-khong-tim-thay-mot-cau-thu-nhu-cong-phuong-55893.html",
+            "http://thethao.thanhnien.com.vn/bong-da-quoc-te/neymar-messi-va-ronaldo-vao-danh-sach-rut-gon-tranh-qua-bong-vang-fifa-2015-55903.html",
+            "http://thethao.thanhnien.com.vn/bong-da-quoc-te/arsenal-bi-chan-thuong-tan-pha-gan-het-doi-hinh-chinh-55899.html",
+            "http://edition.cnn.com/2015/11/30/opinions/sutter-obama-climate-change-cop21-two-degrees/index.html",
+            "http://stackoverflow.com/questions/17555218/python-how-to-sort-a-list-of-lists-by-the-fourth-element-in-each-list"
         ]
 
         logger_level = DEBUG
@@ -56,11 +61,20 @@ class MyTestCase(unittest.TestCase):
     def test_api(self):
         import requests
         params = {
+            'distance_metric': 'cosine',
             'main_url': self.main_url,
-            'sub_urls': self.sub_urls
+            'sub_urls': ', '.join(self.sub_urls)
         }
-        response = requests.get('http://127.0.0.1:5000/api/similarity_checker', json=params)
+        response = requests.post('http://localhost:8888/similarity_checker/', data=params)
         pprint(response.json())
+
+    def test_similarity_function(self):
+        from similarity_checker import cosine_similarity, jaccard_similarity, fuzzy_similarity
+        tokens_1 = 'This is a foo bar sentence'.split()
+        tokens_2 = 'This sentence is similar to a foo bar sentence'.split()
+        pprint('jaccard: %s' % jaccard_similarity(tokens_1, tokens_2))
+        pprint('cosine: %s' % cosine_similarity(tokens_1, tokens_2))
+        pprint('fuzzy: %s' % fuzzy_similarity(tokens_1, tokens_2))
 
 if __name__ == '__main__':
     unittest.main()
