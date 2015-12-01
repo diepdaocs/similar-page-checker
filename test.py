@@ -79,7 +79,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_tokenizer(self):
         from similarity_checker import tokenize_and_normalize_content
-        url = 'http://www.zoopla.co.uk/for-sale/property/framlingham/'
+        url = 'http://vnexpress.net/tin-tuc/the-gioi/phan-tich/vi-sao-tho-nhi-ky-quyet-khong-xin-loi-nga-3319565.html'
         page = self.content_getter.process([url])
         pprint(tokenize_and_normalize_content(page[url]['content']))
 

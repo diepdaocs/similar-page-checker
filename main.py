@@ -192,5 +192,5 @@ class PageExtractorResource(Resource):
 
 
 if __name__ == '__main__':
-    app.run(debug=False, host='107.170.109.238', port=8888)
+    app.run(debug=True, host='107.170.109.238', port=8888)
     # app.run(debug=True, port=8888)
