@@ -11,9 +11,7 @@ from elasticsearch import Elasticsearch
 from flask_restplus import Api, Resource, fields
 
 app = Flask(__name__)
-api = Api(app, doc='/doc/', version='1.0', title='Web pages similarity',
-          description='Api for checking web pages similarity', contact='Diep Dao',
-          contact_email='diepdao12892@gmail.com')
+api = Api(app, doc='/doc/', version='1.0', title='Web pages similarity')
 
 logger_level = DEBUG
 
