@@ -69,12 +69,19 @@ class MyTestCase(unittest.TestCase):
         pprint(response.json())
 
     def test_similarity_function(self):
-        from similarity_checker import cosine_similarity, jaccard_similarity, fuzzy_similarity
+        from similarity_checker import cosine_similarity, jaccard_similarity, fuzzy_similarity, simhash_similarity
         tokens_1 = 'This is a foo bar sentence'.split()
         tokens_2 = 'This sentence is similar to a foo bar sentence'.split()
         pprint('jaccard: %s' % jaccard_similarity(tokens_1, tokens_2))
         pprint('cosine: %s' % cosine_similarity(tokens_1, tokens_2))
         pprint('fuzzy: %s' % fuzzy_similarity(tokens_1, tokens_2))
+        pprint('simhash: %s' % simhash_similarity(tokens_1, tokens_2))
+
+    def test_tokenizer(self):
+        from similarity_checker import tokenize_and_normalize_content
+        url = 'http://www.zoopla.co.uk/for-sale/property/framlingham/'
+        page = self.content_getter.process([url])
+        pprint(tokenize_and_normalize_content(page[url]['content']))
 
 if __name__ == '__main__':
     unittest.main()

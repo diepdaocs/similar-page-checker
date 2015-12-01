@@ -4,7 +4,8 @@ from flask import request, Flask, jsonify
 from crawler import PageCrawler
 from extractor import DragnetPageExtractor
 from content_getter import ContentGetter
-from similarity_checker import CosineSimilarity, SimilarityChecker, jaccard_similarity, cosine_similarity, fuzzy_similarity
+from similarity_checker import CosineSimilarity, SimilarityChecker, jaccard_similarity, cosine_similarity, \
+    fuzzy_similarity, simhash_similarity
 from utils import logger_level, INFO, DEBUG
 from elasticsearch import Elasticsearch
 from flask_restplus import Api, Resource, fields
@@ -38,7 +39,7 @@ sim_check_response = api.model('sim_check_response', {
 
 ns1 = api.namespace('similarity_checker', 'Similarity Checker')
 
-distance_metrics = ['jaccard', 'cosine', 'fuzzy']
+distance_metrics = ['jaccard', 'cosine', 'fuzzy', 'simhash']
 
 
 @ns1.route('/')
@@ -68,6 +69,9 @@ class SimilarityCheckerResource(Resource):
 
         elif distance_metric == 'fuzzy':
             similarity_checker.similarity = fuzzy_similarity
+
+        elif distance_metric == 'simhash':
+            similarity_checker.similarity = simhash_similarity
 
         main_url = request.values.get('main_url', '')
         sub_url_string = request.values.get('sub_urls', '')

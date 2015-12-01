@@ -6,6 +6,7 @@ import uuid
 import traceback
 from nltk import wordpunct_tokenize
 import string
+from simhash import Simhash
 
 
 def pre_process_urls(urls):
@@ -16,8 +17,9 @@ def tokenize_and_normalize_content(content):
     result = []
     for word in wordpunct_tokenize(content):
         word = word.strip(string.punctuation).lower()
-        if word:
-            result.append(word)
+        if not word or len(word) == 1:
+            continue
+        result.append(word)
 
     return result
 
@@ -45,6 +47,10 @@ def jaccard_similarity(tokens_1, tokens_2):
 
 def fuzzy_similarity(tokens_1, tokens_2):
     return fuzz.token_sort_ratio(' '.join(tokens_1), ' '.join(tokens_2))
+
+
+def simhash_similarity(tokens_1, tokens_2):
+    return 100 - Simhash(tokens_1).distance(Simhash(tokens_2))
 
 
 class SimilarityChecker(object):
