@@ -5,6 +5,7 @@ from elasticsearch.helpers import bulk
 import uuid
 import traceback
 from nltk import wordpunct_tokenize
+from nltk.util import ngrams
 import string
 from simhash import Simhash
 
@@ -13,15 +14,43 @@ def pre_process_urls(urls):
     return [url.strip() for url in urls]
 
 
-def tokenize_and_normalize_content(content):
+def tokenize_and_normalize_content(content, unit='word', min_ngram=1, max_ngram=1):
+    # pre check condition
+    if max_ngram < 1:
+        max_ngram = 1
+    if max_ngram > 20:
+        max_ngram = 20
+    if min_ngram < 1:
+        min_ngram = 1
+    if min_ngram > max_ngram:
+        min_ngram = max_ngram
+    if unit not in ['word', 'character']:
+        unit = 'word'
+
     if type(content) is not unicode:
         content = unicode(content, 'utf-8', errors='ignore')
+
     result = []
+
+    # pre tokenize
+    words = []
     for word in wordpunct_tokenize(content):
         word = word.strip(string.punctuation).lower()
         if not word or len(word) == 1:
             continue
-        result.append(word)
+        words.append(word)
+
+    # generate ngram
+    if unit == 'character':
+        words = ''.join(words)
+
+    for n in range(min_ngram, max_ngram + 1):
+        cols = ngrams(words, n)
+        for e in cols:
+            if unit == 'word':
+                result.append(' '.join(e))
+            else:
+                result.append(''.join(e))
 
     return result
 
@@ -44,7 +73,11 @@ def cosine_similarity(tokens_1, tokens_2):
 def jaccard_similarity(tokens_1, tokens_2):
     tokens_1 = set(tokens_1)
     tokens_2 = set(tokens_2)
-    return round(float(len(tokens_1 & tokens_2)) / len(tokens_1 | tokens_2) * 100, 2)
+    union = len(tokens_1 | tokens_2)
+    if not union:
+        return 0.0
+
+    return round(float(len(tokens_1 & tokens_2)) / union * 100, 2)
 
 
 def fuzzy_similarity(tokens_1, tokens_2):
@@ -56,9 +89,12 @@ def simhash_similarity(tokens_1, tokens_2):
 
 
 class SimilarityChecker(object):
-    def __init__(self, content_getter, similarity):
+    def __init__(self, content_getter, similarity, unit='word', min_ngram=1, max_ngram=1):
         self.similarity = similarity
         self.content_getter = content_getter
+        self.unit = unit
+        self.min_ngram = min_ngram
+        self.max_ngram = max_ngram
 
     def process(self, main_url, sub_urls):
         result = []
@@ -75,7 +111,8 @@ class SimilarityChecker(object):
             return result
         # tokenize content into words
         for url, page in pages.items():
-            pages[url]['content'] = tokenize_and_normalize_content(page['content'])
+            pages[url]['content'] = tokenize_and_normalize_content(page['content'], unit=self.unit,
+                                                                   min_ngram=self.min_ngram, max_ngram=self.max_ngram)
 
         # check similarity
         main_tokens = pages[main_url]['content']

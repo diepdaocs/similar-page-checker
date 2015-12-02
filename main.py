@@ -46,7 +46,10 @@ class SimilarityCheckerResource(Resource):
     @api.doc(params={'distance_metric': 'Distance metric to be used (currently support %s)'
                                         % ', '.join(distance_metrics),
                      'main_url': 'Main url for checking similarity',
-                     'sub_urls': 'Sub urls to be checked (urls are separated by comma)'})
+                     'sub_urls': 'Sub urls to be checked (urls are separated by comma)',
+                     'unit': 'Unit of ngram, support value are word or character, default is word',
+                     'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
+                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
     @api.response(200, 'Success', model=sim_check_response)
     def post(self):
         """Post web pages to check similarity percentage"""
@@ -55,6 +58,12 @@ class SimilarityCheckerResource(Resource):
             'similarity': []
         }
         # get request params
+        unit = request.values.get('unit', 'word')
+        min_ngram = int(request.values.get('min_ngram', 1))
+        max_ngram = int(request.values.get('max_ngram', 1))
+        similarity_checker.unit = unit
+        similarity_checker.min_ngram = min_ngram
+        similarity_checker.max_ngram                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 = max_ngram
         distance_metric = request.values.get('distance_metric', '')
         if not distance_metric or distance_metric not in distance_metrics:
             result['error'] = 'distance_metric must be in %s' % ', '.join(distance_metrics)
@@ -173,7 +182,10 @@ ns2 = api.namespace('page_extractor', 'Page Extractor')
 @ns2.route('/extractor')
 class PageExtractorResource(Resource):
     """Extract content from crawled web pages"""
-    @api.doc(params={'urls': 'The urls to be extracted content (If many urls, separate by comma)'})
+    @api.doc(params={'urls': 'The urls to be extracted content (If many urls, separate by comma)',
+                     'unit': 'Unit of ngram, support value are word or character, default is word',
+                     'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
+                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
     @api.response(200, 'Success', model='page_extractor_response')
     def get(self):
         """Post web pages to extract content"""
@@ -181,6 +193,9 @@ class PageExtractorResource(Resource):
             'error': False,
             'pages': []
         }
+        unit = request.values.get('unit', 'word')
+        min_ngram = int(request.values.get('min_ngram', 1))
+        max_ngram = int(request.values.get('max_ngram', 1))
         urls = request.values.get('urls', '')
         strip_chars = ' "\''
         urls = [u.strip(strip_chars) for u in urls.split(',') if u.strip(strip_chars)]
@@ -189,7 +204,8 @@ class PageExtractorResource(Resource):
         if not result['error']:
             pages = result['pages']
             for url, page in content_getter.process(urls).items():
-                page['tokens'] = tokenize_and_normalize_content(page['content'])
+                page['tokens'] = tokenize_and_normalize_content(page['content'], unit=unit, min_ngram=min_ngram,
+                                                                max_ngram=max_ngram)
                 pages.append((url, page))
 
         return jsonify(result)
@@ -241,10 +257,14 @@ def get_similarity_checker(name):
 @ns3.route('/similarity')
 class ContentSimilarityResource(Resource):
     """Check similarity between content"""
-    @api.doc(params={'content_1': 'Content to be checked', 'content_2': 'Another content to be checked',
+    from collections import OrderedDict
+    @api.doc(params=OrderedDict({'content_1': 'Content to be checked', 'content_2': 'Another content to be checked',
                      'distance_metrics': 'Distance metrics to be used (currently support %s), if empty, show all '
                                          'distance metrics result, if many, separate by comma.'
-                                         % ', '.join(distance_metrics)})
+                                         % ', '.join(distance_metrics),
+                     'unit': 'Unit of ngram, support value are word or character, default is word',
+                     'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
+                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'}))
     @api.response(200, 'Success', model='content_sim_response')
     def get(self):
         """Post content to check similarity"""
@@ -254,8 +274,13 @@ class ContentSimilarityResource(Resource):
             'tokens_1': [],
             'tokens_2': []
         }
-        content_1 = tokenize_and_normalize_content(request.values.get('content_1', ''))
-        content_2 = tokenize_and_normalize_content(request.values.get('content_2', ''))
+        unit = request.values.get('unit', 'word')
+        min_ngram = int(request.values.get('min_ngram', 1))
+        max_ngram = int(request.values.get('max_ngram', 1))
+        content_1 = tokenize_and_normalize_content(request.values.get('content_1', ''), unit=unit, min_ngram=min_ngram,
+                                                   max_ngram=max_ngram)
+        content_2 = tokenize_and_normalize_content(request.values.get('content_2', ''), unit=unit, min_ngram=min_ngram,
+                                                   max_ngram=max_ngram)
         result['tokens_1'] = content_1
         result['tokens_2'] = content_2
         selected_dm = request.values.get('distance_metrics', '')

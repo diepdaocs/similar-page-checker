@@ -83,5 +83,10 @@ class MyTestCase(unittest.TestCase):
         page = self.content_getter.process([url])
         pprint(tokenize_and_normalize_content(page[url]['content']))
 
+    def test_tokenize_and_normalize(self):
+        from similarity_checker import tokenize_and_normalize_content
+        text = 'what are you doing'
+        pprint(tokenize_and_normalize_content(text, unit='character', min_ngram=1, max_ngram=3))
+
 if __name__ == '__main__':
     unittest.main()
