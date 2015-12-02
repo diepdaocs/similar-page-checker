@@ -5,15 +5,13 @@ from crawler import PageCrawler
 from extractor import DragnetPageExtractor
 from content_getter import ContentGetter
 from similarity_checker import CosineSimilarity, SimilarityChecker, jaccard_similarity, cosine_similarity, \
-    fuzzy_similarity, simhash_similarity
+    fuzzy_similarity, simhash_similarity, tokenize_and_normalize_content
 from utils import logger_level, INFO, DEBUG
 from elasticsearch import Elasticsearch
 from flask_restplus import Api, Resource, fields
 
 app = Flask(__name__)
-api = Api(app, doc='/doc/', version='1.0', title='Web pages similarity',
-          description='Api for checking web pages similarity', contact='Diep Dao',
-          contact_email='diepdao12892@gmail.com')
+api = Api(app, doc='/doc/', version='1.0', title='Web pages similarity')
 
 logger_level = DEBUG
 
@@ -146,6 +144,7 @@ page_extractor_response = api.model('page_extractor_response', {
             'url1',
             {
                 'content': 'content1',
+                'tokens': 'tokens of content after tokenize',
                 'error': ''
             }
         ],
@@ -153,6 +152,7 @@ page_extractor_response = api.model('page_extractor_response', {
             'url2',
             {
                 'content': 'content2',
+                'tokens': 'tokens of content after tokenize',
                 'error': ''
             }
         ],
@@ -160,6 +160,7 @@ page_extractor_response = api.model('page_extractor_response', {
             'url3',
             {
                 'content': 'content3',
+                'tokens': 'tokens of content after tokenize',
                 'error': ''
             }
         ]
@@ -186,7 +187,91 @@ class PageExtractorResource(Resource):
         if not urls:
             result['error'] = 'urls must not be empty'
         if not result['error']:
-            result['pages'] = [(url, page) for url, page in content_getter.process(urls).items()]
+            pages = result['pages']
+            for url, page in content_getter.process(urls).items():
+                page['tokens'] = tokenize_and_normalize_content(page['content'])
+                pages.append((url, page))
+
+        return jsonify(result)
+
+
+content_sim_response = api.model('content_sim_response', {
+    'error': fields.String(default='False (boolean) if request successfully, else return error message (string)'),
+    'tokens_1': fields.String(default='Tokens of content_1 after tokenize'),
+    'tokens_2': fields.String(default='Tokens of content_2 after tokenize'),
+    'distances': fields.String(default=[
+        [
+            {
+                'metric1': 'matching percentage'
+            }
+        ],
+        [
+            {
+                'metric2': 'matching percentage'
+            }
+        ],
+        [
+            {
+                'metric3': 'matching percentage'
+            }
+        ],
+    ])
+})
+
+
+ns3 = api.namespace('content', 'Content Similarity')
+
+
+def get_similarity_checker(name):
+    result = None
+    if name == 'jaccard':
+        result = jaccard_similarity
+
+    elif name == 'cosine':
+        result = cosine_similarity
+
+    elif name == 'fuzzy':
+        result = fuzzy_similarity
+
+    elif name == 'simhash':
+        result = simhash_similarity
+    return result
+
+
+@ns3.route('/similarity')
+class ContentSimilarityResource(Resource):
+    """Extract content from crawled web pages"""
+    @api.doc(params={'content_1': 'Content to be checked', 'content_2': 'Another content to be checked',
+                     'distance_metrics': 'Distance metrics to be used (currently support %s), if empty, show all '
+                                         'distance metrics result, if many, separate by comma.'
+                                         % ', '.join(distance_metrics)})
+    @api.response(200, 'Success', model='content_sim_response')
+    def get(self):
+        """Post web pages to extract content"""
+        result = {
+            'error': False,
+            'distances': [],
+            'tokens_1': [],
+            'tokens_2': []
+        }
+        content_1 = tokenize_and_normalize_content(request.values.get('content_1', ''))
+        content_2 = tokenize_and_normalize_content(request.values.get('content_2', ''))
+        result['tokens_1'] = content_1
+        result['tokens_2'] = content_2
+        selected_dm = request.values.get('distance_metrics', '')
+        strip_chars = ' "\''
+        selected_dm = [d.strip(strip_chars).lower() for d in selected_dm.split(',') if d.strip(strip_chars)]
+        if not selected_dm:
+            selected_dm = distance_metrics
+
+        distances = result['distances']
+        for dm_name in selected_dm:
+            sim_checker = get_similarity_checker(dm_name)
+            if sim_checker:
+                distances.append({dm_name: sim_checker(content_1, content_2)})
+            else:
+                distances.append({dm_name: 'Distance metric %s do not existed, we support only %s' %
+                                           (dm_name, ', '.join(distance_metrics))})
 
         return jsonify(result)
 

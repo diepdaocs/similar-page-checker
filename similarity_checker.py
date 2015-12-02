@@ -14,7 +14,8 @@ def pre_process_urls(urls):
 
 
 def tokenize_and_normalize_content(content):
-    content = unicode(content, 'utf-8', errors='ignore')
+    if type(content) is not unicode:
+        content = unicode(content, 'utf-8', errors='ignore')
     result = []
     for word in wordpunct_tokenize(content):
         word = word.strip(string.punctuation).lower()

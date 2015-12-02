@@ -61,7 +61,7 @@ class MyTestCase(unittest.TestCase):
     def test_api(self):
         import requests
         params = {
-            'distance_metric': 'cosine',
+            'distance_metric': 'fuzzy',
             'main_url': self.main_url,
             'sub_urls': ', '.join(self.sub_urls)
         }
@@ -70,7 +70,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_similarity_function(self):
         from similarity_checker import cosine_similarity, jaccard_similarity, fuzzy_similarity, simhash_similarity
-        tokens_1 = 'This is a foo bar sentence'.split()
+        tokens_1 = 'This is a foo ba'.split()
         tokens_2 = 'This sentence is similar to a foo bar sentence'.split()
         pprint('jaccard: %s' % jaccard_similarity(tokens_1, tokens_2))
         pprint('cosine: %s' % cosine_similarity(tokens_1, tokens_2))
