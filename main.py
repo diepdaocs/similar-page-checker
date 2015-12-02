@@ -240,14 +240,14 @@ def get_similarity_checker(name):
 
 @ns3.route('/similarity')
 class ContentSimilarityResource(Resource):
-    """Extract content from crawled web pages"""
+    """Check similarity between content"""
     @api.doc(params={'content_1': 'Content to be checked', 'content_2': 'Another content to be checked',
                      'distance_metrics': 'Distance metrics to be used (currently support %s), if empty, show all '
                                          'distance metrics result, if many, separate by comma.'
                                          % ', '.join(distance_metrics)})
     @api.response(200, 'Success', model='content_sim_response')
     def get(self):
-        """Post web pages to extract content"""
+        """Post content to check similarity"""
         result = {
             'error': False,
             'distances': [],
