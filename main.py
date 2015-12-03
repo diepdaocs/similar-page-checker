@@ -4,7 +4,7 @@ from flask import request, Flask, jsonify
 from crawler import PageCrawler
 from extractor import DragnetPageExtractor
 from content_getter import ContentGetter
-from similarity_checker import CosineSimilarity, SimilarityChecker, jaccard_similarity, cosine_similarity, \
+from similarity_checker import SimilarityChecker, jaccard_similarity, cosine_similarity, \
     fuzzy_similarity, simhash_similarity, tokenize_and_normalize_content
 from utils import logger_level, INFO, DEBUG
 from elasticsearch import Elasticsearch
@@ -257,14 +257,13 @@ def get_similarity_checker(name):
 @ns3.route('/similarity')
 class ContentSimilarityResource(Resource):
     """Check similarity between content"""
-    from collections import OrderedDict
-    @api.doc(params=OrderedDict({'content_1': 'Content to be checked', 'content_2': 'Another content to be checked',
+    @api.doc(params={'content_1': 'Content to be checked', 'content_2': 'Another content to be checked',
                      'distance_metrics': 'Distance metrics to be used (currently support %s), if empty, show all '
                                          'distance metrics result, if many, separate by comma.'
                                          % ', '.join(distance_metrics),
                      'unit': 'Unit of ngram, support value are word or character, default is word',
                      'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
-                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'}))
+                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
     @api.response(200, 'Success', model='content_sim_response')
     def get(self):
         """Post content to check similarity"""
