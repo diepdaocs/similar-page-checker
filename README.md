@@ -1,3 +1,48 @@
 # Web pages similarity checking #
-* #### Pre install for ubuntu ###
-sudo apt-get install -y libxml2-dev libxslt1-dev zlib1g-dev python3-pip
+## Install python environment libraries for Ubuntu ##
+```
+#!shell
+sudo apt-get install -y git python-dev python-pip build-essential libxml2-dev libxslt1-dev zlib1g-dev python3-pip
+sudo pip install virtualenvwrapper
+source `which virtualenvwrapper.sh` && echo "source `which virtualenvwrapper.sh`" >> ~/.bashrc && echo "[[ -r ~/.bashrc ]] && . ~/.bashrc" >> ~/.bash_profile
+
+```
+
+## Install python project virtual environment ##
+```
+#!shell
+mkvirtualenv webpages-duplicated-checking
+workon webpages-duplicated-checking
+
+```
+
+## Clone source code and install requirements ##
+
+```
+#!shell
+git clone https://diepdt@bitbucket.org/diepdt/webpages-duplicated-checking.git
+cd webpages-duplicated-checking/
+workon webpages-duplicated-checking
+pip install -r requirements.txt
+
+```
+
+## Run webpages-duplicated-checking service ##
+
+
+```
+#!shell
+cd webpages-duplicated-checking/
+screen -R webpages-duplicated-checking
+workon webpages-duplicated-checking
+python main.py
+
+```
+
+## Monitor and view service logs ##
+
+```
+#!shell
+screen -r webpages-duplicated-checking
+
+```
