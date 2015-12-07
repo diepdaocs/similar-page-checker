@@ -35,12 +35,12 @@ sim_check_response = api.model('sim_check_response', {
     'similarity': fields.String(default="""[[url1, matching_percentage1], [url2, matching_percentage2], [url3, matching_percentage3], [url4, "Page not found]"], [url4, "Page not found]"],...]""")
 })
 
-ns1 = api.namespace('similarity_checker', 'Similarity Checker')
+ns1 = api.namespace('similarity', 'Similarity Checker')
 
 distance_metrics = ['jaccard', 'cosine', 'fuzzy', 'simhash']
 
 
-@ns1.route('/')
+@ns1.route('/check')
 class SimilarityCheckerResource(Resource):
     """Checking similarity between main web page and other web pages"""
     @api.doc(params={'distance_metric': 'Distance metric to be used (currently support %s)'
@@ -104,47 +104,6 @@ class SimilarityCheckerResource(Resource):
 
         return jsonify(result)
 
-    @api.doc(False)
-    @api.response(200, 'Success', model=sim_check_response)
-    def get(self):
-        """Post web pages to check similarity percentage"""
-        result = {
-            'error': False,
-            'similarity': []
-        }
-        # check request header
-        if request.headers['Content-Type'] != 'application/json':
-            result['error'] = 'Request params type must be application/json'
-            return result
-
-        # get request params
-        params = request.get_json()
-        main_url = ''
-        sub_urls = []
-        if 'main_url' not in params or not params['main_url'].strip():
-            result['error'] = 'main_url must not blank'
-        else:
-            main_url = params['main_url']
-
-        if 'sub_urls' not in params or not params['sub_urls']:
-            result['error'] = 'sub_urls must not blank'
-        else:
-            sub_urls = params['sub_urls']
-
-        # validate params type
-        if type(sub_urls) is not list:
-            result['error'] = 'sub_urls must be in array type'
-
-        if not result['error']:
-            # check similarity
-            sims = similarity_checker.process(main_url=main_url, sub_urls=sub_urls)
-            if sims:
-                result['similarity'] = sims
-            else:
-                result['error'] = 'Main page is empty'
-
-        return jsonify(result)
-
 
 page_extractor_response = api.model('page_extractor_response', {
     'error': fields.String(default='False (boolean) if request successfully, else return error message (string)'),
@@ -176,10 +135,10 @@ page_extractor_response = api.model('page_extractor_response', {
     ])
 })
 
-ns2 = api.namespace('page_extractor', 'Page Extractor')
+ns2 = api.namespace('page', 'Page Extractor')
 
 
-@ns2.route('/extractor')
+@ns2.route('/extract')
 class PageExtractorResource(Resource):
     """Extract content from crawled web pages"""
     @api.doc(params={'urls': 'The urls to be extracted content (If many urls, separate by comma)',
@@ -187,7 +146,7 @@ class PageExtractorResource(Resource):
                      'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
                      'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
     @api.response(200, 'Success', model='page_extractor_response')
-    def get(self):
+    def post(self):
         """Post web pages to extract content"""
         result = {
             'error': False,
@@ -265,7 +224,7 @@ class ContentSimilarityResource(Resource):
                      'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
                      'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
     @api.response(200, 'Success', model='content_sim_response')
-    def get(self):
+    def post(self):
         """Post content to check similarity"""
         result = {
             'error': False,
