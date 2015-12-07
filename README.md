@@ -62,5 +62,6 @@ python main.py
 
 ```
 # API #
-## All the api has been documents by Swagger, please view `main.py` file to see where the server has been deploy. ##
-The swagger document url is `[HOST URL]/doc:port`. You can change to `host` and `port` from `app.run(debug=True, host='107.170.109.238', port=8888)' line.
+## All the api has been documents by [Swagger](http://swagger.io/) ##
+* After run service by `python mani.py`, you can access to the Swagger UI by url `[HOST]:[PORT]/doc`, please view `main.py` file to see where the server host and port has been deployed. For example [http://107.170.109.238:8888/doc/](http://107.170.109.238:8888/doc/).
+* You can change to `host` and `port` from `app.run(debug=True, host='107.170.109.238', port=8888)' line in `main.py`. You can run service in debug mode by set parameter `debug=True`.
