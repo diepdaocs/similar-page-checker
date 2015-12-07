@@ -27,11 +27,16 @@ Active virtual environment (Remember to active virtual environment before run se
 workon webpages-duplicated-checking
 
 ```
-## Get source code and install requirements into virtual environment ##
-
+## Get source code and install requirement library into virtual environment ##
+### Clone source code ###
 ```
 #!shell
 git clone https://diepdt@bitbucket.org/diepdt/webpages-duplicated-checking.git
+
+```
+### Install library (All python requirement libraries has been put in `requirements.txt` file) ###
+```
+#!shell
 cd webpages-duplicated-checking/
 workon webpages-duplicated-checking
 pip install -r requirements.txt
@@ -64,4 +69,4 @@ python main.py
 # API #
 ## All the api has been documents by [Swagger UI](http://swagger.io/) ##
 * After run service by `python mani.py`, you can access to the Swagger UI by url `[HOST]:[PORT]/doc`, please view `main.py` file to see where the server host and port has been deployed. For example [http://107.170.109.238:8888/doc/](http://107.170.109.238:8888/doc/).
-* You can change to `host` and `port` from `app.run(debug=True, host='107.170.109.238', port=8888)' line in `main.py`. You can run service in debug mode by set parameter `debug=True`.
+* You can change to `host` and `port` from `app.run(debug=True, host='107.170.109.238', port=8888)` line in `main.py`. You can run service in debug mode by set parameter `debug=True`.
