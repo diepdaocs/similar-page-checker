@@ -16,7 +16,7 @@ workon webpages-duplicated-checking
 
 ```
 
-## Clone source code and install requirements ##
+## Get source code and install requirements into virtual environment ##
 
 ```
 #!shell
