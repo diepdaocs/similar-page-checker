@@ -40,6 +40,7 @@ python main.py
 
 ```
 ## Monitor and view service logs ##
+View service
 ```
 #!shell
 screen -r webpages-duplicated-checking
