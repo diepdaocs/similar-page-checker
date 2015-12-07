@@ -1,10 +1,11 @@
 # Web pages similarity checking #
 
 # Overview #
-## Mainly, we have 3 module: Page Crawler, Page Extractor and Similarity Checker ##
+## Mainly, we have 4 modules: Page Crawler, Page Extractor, Similarity Checker and Web Service ##
 * Page Crawler: Crawl html content of web page. Currently, we use python [`requests`](https://github.com/kennethreitz/requests) library.
 * Page Extractor: Extract content from raw html (remove html tag, unnecessary content,...). Currently, we use python [`dragnet`](https://github.com/seomoz/dragnet)  library.
 * Similarity Checker: Calculate similarity between web pages content. The content is firstly `tokenizer` into tokens, after that generate [`ngram`](https://en.wikipedia.org/wiki/N-gram) (or shingles) tokens set, and finally apply [`distance metrics`](http://dataaspirant.com/2015/04/11/five-most-popular-similarity-measures-implementation-in-python/) to calculate similarity. Currently, we support three distance metrics are `jaccard`, `cosine` and `fuzzy`.
+* Web Service: Build RESTful api services. Currently, we use python [flask](http://flask.pocoo.org/) (a micro web framework) and [Swagger UI](http://swagger.io/) for presenting API documents.
 # Setup #
 ## Install python environment libraries for Ubuntu ##
 ```
@@ -70,3 +71,4 @@ python main.py
 ## All the api has been documented in [Swagger UI](http://swagger.io/) ##
 * After run service by `python mani.py`, you can access to the Swagger UI by url `[HOST]:[PORT]/doc`, please view `main.py` file to see where the server host and port has been deployed. For example [http://107.170.109.238:8888/doc/](http://107.170.109.238:8888/doc/).
 * You can change to `host` and `port` from `app.run(debug=True, host='107.170.109.238', port=8888)` line in `main.py`. You can run service in debug mode by set parameter `debug=True`.
+* You can try the API calls and view API documents directly from Swagger UI.
