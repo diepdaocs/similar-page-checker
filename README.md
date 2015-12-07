@@ -7,7 +7,6 @@ sudo pip install virtualenvwrapper
 source `which virtualenvwrapper.sh` && echo "source `which virtualenvwrapper.sh`" >> ~/.bashrc && echo "[[ -r ~/.bashrc ]] && . ~/.bashrc" >> ~/.bash_profile
 
 ```
-
 ## Install python project virtual environment ##
 ```
 #!shell
@@ -15,7 +14,6 @@ mkvirtualenv webpages-duplicated-checking
 workon webpages-duplicated-checking
 
 ```
-
 ## Get source code and install requirements into virtual environment ##
 
 ```
@@ -26,10 +24,7 @@ workon webpages-duplicated-checking
 pip install -r requirements.txt
 
 ```
-
 ## Run webpages-duplicated-checking service ##
-
-
 ```
 #!shell
 cd webpages-duplicated-checking/
@@ -38,11 +33,17 @@ workon webpages-duplicated-checking
 python main.py
 
 ```
-
 ## Monitor and view service logs ##
-
 ```
 #!shell
 screen -r webpages-duplicated-checking
+
+```
+To stop service, press Ctrl + C.
+To start service:
+```
+#!shell
+workon webpages-duplicated-checking
+python main.py
 
 ```
