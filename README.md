@@ -8,9 +8,15 @@ source `which virtualenvwrapper.sh` && echo "source `which virtualenvwrapper.sh`
 
 ```
 ## Install python project virtual environment ##
+Create virtual environment
 ```
 #!shell
 mkvirtualenv webpages-duplicated-checking
+
+```
+Active virtual environment (Remember to active virtual environment before run service)
+```
+#!shell
 workon webpages-duplicated-checking
 
 ```
