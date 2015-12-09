@@ -1,5 +1,7 @@
 # Web pages similarity checking #
 
+[TOC]
+
 # Overview #
 ## Mainly, we have 4 modules: Page Crawler, Page Extractor, Similarity Checker and Web Service ##
 * Page Crawler: Crawl html content of web page. Currently, we use python [`requests`](https://github.com/kennethreitz/requests) library.
@@ -72,3 +74,7 @@ python main.py
 * After run service by `python mani.py`, you can access to the Swagger UI by url `http://[HOST]:[PORT]/doc`, please view `main.py` file to see where the server host and port has been deployed. For example [http://107.170.109.238:8888/doc/](http://107.170.109.238:8888/doc/).
 * You can change to `host` and `port` from `app.run(debug=True, host='107.170.109.238', port=8888)` line in `main.py`. You can run service in debug mode by set parameter `debug=True`.
 * You can try the API calls and view API documents directly from Swagger UI.
+
+# Fully deploy to production #
+* For scaling, you must run application service under [gunicorn](http://flask.pocoo.org/docs/0.10/deploying/wsgi-standalone/) because flask is a single-thread application.
+* Replace the `python main.py` above command by `gunicorn -w 2 -b 107.170.109.238:8888 main:app`. `-w [NUM OF PROCESSOR]`: Number of processor. `-b [HOST]:[PORT]`: Host and port to deploy service. `-D`: Run gunicorn as a deamon process.
