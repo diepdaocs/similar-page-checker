@@ -83,4 +83,18 @@ python main.py
 #!shell
 tail -f logs/[DATE].log
 ```
-* If you want to run `Flask` and `gunicorn` under `nginx` server, use following tutorial: [How to Run Flask Applications with Nginx Using Gunicorn](http://www.onurguzel.com/how-to-run-flask-applications-with-nginx-using-gunicorn/).
+* If you want to run `Flask` and `gunicorn` under `nginx` server, use following tutorial: [How to Run Flask Applications with Nginx Using Gunicorn](http://www.onurguzel.com/how-to-run-flask-applications-with-nginx-using-gunicorn/). Below is `nginx` config server:
+```
+#!shell
+server {
+    listen 80;
+    server_name 107.170.109.238;
+    access_log  /var/log/nginx/webpage-similarity.log;
+
+    location / {
+        proxy_pass http://127.0.0.1:8888;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
