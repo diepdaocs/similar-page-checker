@@ -1,4 +1,6 @@
 import logging
+import os
+from datetime import datetime
 
 CRITICAL = logging.CRITICAL
 FATAL = logging.CRITICAL
@@ -13,8 +15,13 @@ _LOGGERS = {}
 
 logger_level = INFO
 
+logs_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'logs')
 
-def get_logger(name, level=logger_level, log_file=None):
+if not os.path.exists(logs_dir):
+    os.makedirs(logs_dir)
+
+
+def get_logger(name, level=logger_level, log_file=os.path.join(logs_dir, '%s.log' % str(datetime.utcnow().date()))):
     global _LOGGERS
     if name in _LOGGERS:
         return _LOGGERS[name]

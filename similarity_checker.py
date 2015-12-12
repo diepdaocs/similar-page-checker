@@ -95,6 +95,7 @@ class SimilarityChecker(object):
         self.unit = unit
         self.min_ngram = min_ngram
         self.max_ngram = max_ngram
+        self.logger = get_logger(self.__class__.__name__)
 
     def process(self, main_url, sub_urls):
         result = []
@@ -129,6 +130,7 @@ class SimilarityChecker(object):
 
         # sort result
         result.sort(key=lambda x: x[1], reverse=True)
+        self.logger.info('Similarity result: %s' % result)
         return result
 
 
