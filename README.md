@@ -77,4 +77,10 @@ python main.py
 
 # Fully deploy to production #
 * For scaling, you must run application service under [gunicorn](http://flask.pocoo.org/docs/0.10/deploying/wsgi-standalone/) because flask is a single-thread application.
-* Replace the `python main.py` above command by `gunicorn -w 2 -b 107.170.109.238:8888 main:app`. `-w [NUM OF PROCESSOR]`: Number of processor. `-b [HOST]:[PORT]`: Host and port to deploy service. `-D`: Run gunicorn as a deamon process.
+* Replace the `python main.py` above command by `gunicorn -w 2 -b 107.170.109.238:8888 main:app`. `-w [NUM OF WORKER PROCESS]` - Number of processor. `-b [HOST]:[PORT]` - Host and port to deploy service. `-D` - Run gunicorn as a deamon process.
+* When run `gunicorn` as daemon, if you want to view log, use command:
+```
+#!shell
+tail -f logs/[DATE].log
+```
+* If you want to run `Flask` and `gunicorn` under `nginx` server, use following tutorial: [How to Run Flask Applications with Nginx Using Gunicorn](http://www.onurguzel.com/how-to-run-flask-applications-with-nginx-using-gunicorn/).
