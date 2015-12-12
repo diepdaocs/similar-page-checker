@@ -83,7 +83,7 @@ python main.py
 #!shell
 tail -f logs/[DATE].log
 ```
-* If you want to run `Flask` and `gunicorn` under `nginx` server, use following tutorial: [How to Run Flask Applications with Nginx Using Gunicorn](http://www.onurguzel.com/how-to-run-flask-applications-with-nginx-using-gunicorn/). Below is `nginx` config server:
+* If you want to run `Flask` and `gunicorn` under `nginx` server, use following tutorial: [How to Run Flask Applications with Nginx Using Gunicorn](http://www.onurguzel.com/how-to-run-flask-applications-with-nginx-using-gunicorn/). Below is `nginx` config server: `sudo vi /etc/nginx/sites-available/webpage-similarity`
 ```
 #!shell
 server {
@@ -97,4 +97,24 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 }
+```
+```
+sudo ln -s /etc/nginx/sites-available/webpage-similarity /etc/nginx/sites-enabled/webpage-similarity
+sudo nginx -t
+service nginx reload
+```
+* If you want run application under `supervisor`, please following this tutorial [How To Install and Manage Supervisor](https://www.digitalocean.com/community/tutorials/how-to-install-and-manage-supervisor-on-ubuntu-and-debian-vps) to set up `supervisor` and config the application as following: `sudo vi /etc/supervisor/conf.d/webpage-similarity.conf`
+```
+#!shell
+[program:webpage-similarity]
+command=/home/root/virtualenvs/webpages-duplicated-checking/bin/python /home/root/virtualenvs/webpages-duplicated-checking/bin/gunicorn -w 4 -b 107.170.109.238:8888 main:app
+directory=/root/webpages-duplicated-checking
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/wepage-similarity.out.log
+redirect_stderr=true
+```
+```
+sudo supervisorctl reread
+sudo supervisorctl update
 ```
