@@ -9,6 +9,9 @@ from similarity_checker import SimilarityChecker, jaccard_similarity, cosine_sim
 from utils import logger_level, INFO, DEBUG
 from elasticsearch import Elasticsearch
 from flask_restplus import Api, Resource, fields
+from tornado.wsgi import WSGIContainer
+from tornado.httpserver import HTTPServer
+from tornado.ioloop import IOLoop
 
 app = Flask(__name__)
 api = Api(app, doc='/doc/', version='1.0', title='Web pages similarity')
@@ -261,4 +264,7 @@ class ContentSimilarityResource(Resource):
 
 if __name__ == '__main__':
     # app.run(debug=True, host='107.170.109.238', port=8888)
-    app.run()
+    # app.run()
+    http_server = HTTPServer(WSGIContainer(app))
+    http_server.listen(8888)
+    IOLoop.instance().start()
