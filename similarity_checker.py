@@ -112,8 +112,8 @@ class SimilarityChecker(object):
             return result
         # tokenize content into words
         for url, page in pages.items():
-            pages[url]['content'] = tokenize_and_normalize_content(page['content'], unit=self.unit,
-                                                                   min_ngram=self.min_ngram, max_ngram=self.max_ngram)
+            page['content'] = tokenize_and_normalize_content(page['content'], unit=self.unit,
+                                                             min_ngram=self.min_ngram, max_ngram=self.max_ngram)
 
         # check similarity
         main_tokens = pages[main_url]['content']
@@ -121,7 +121,7 @@ class SimilarityChecker(object):
             if url not in sub_urls:
                 continue
             sub_tokens = page['content']
-            if not sub_tokens:
+            if page.get('error'):
                 result.append([url, 'Page not found'])
                 continue
 
@@ -130,7 +130,7 @@ class SimilarityChecker(object):
 
         # sort result
         result.sort(key=lambda x: x[1], reverse=True)
-        self.logger.info('Similarity result: %s' % result)
+        self.logger.debug('Similarity result: %s' % result)
         return result
 
 
@@ -168,7 +168,7 @@ class CosineSimilarity(object):
         }
 
         result = self.es_client.indices.create(index=self.index_name, body=index_body)
-        self.logger.info('Create index %s: %s' % (self.index_name, result))
+        self.logger.debug('Create index %s: %s' % (self.index_name, result))
 
     def index_pages(self, pages):
         actions = []
@@ -189,12 +189,12 @@ class CosineSimilarity(object):
             actions.append(op_dict)
 
         success, failed = bulk(client=self.es_client, actions=actions, refresh=True, stats_only=True)
-        self.logger.info('Index pages success: %d, failed: %d', success, failed)
+        self.logger.debug('Index pages success: %d, failed: %d', success, failed)
 
     def delete_index(self):
         if self.es_client.indices.exists(index=self.index_name):
             result = self.es_client.indices.delete(index=self.index_name)
-            self.logger.info('Delete index %s: %s' % (self.index_name, result))
+            self.logger.debug('Delete index %s: %s' % (self.index_name, result))
 
     def process(self, main_url, sub_urls):
         result = []
@@ -254,5 +254,5 @@ class CosineSimilarity(object):
                 score = round(float(hit['_score'] / max_score) * 100, 2)
                 result.append([source['url'], score])
 
-        self.logger.info('Similarity info: %s' % result)
+        self.logger.debug('Similarity info: %s' % result)
         return result

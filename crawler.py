@@ -33,7 +33,7 @@ class PageCrawler(object):
         result = {
             url: {
                 'content': '',
-                'error': ''
+                'error': False
             }
         }
         if url:

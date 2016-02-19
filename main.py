@@ -1,36 +1,27 @@
-#!flask/bin/python
-
 from flask import request, Flask, jsonify
 from crawler import PageCrawler
 from extractor import DragnetPageExtractor
 from content_getter import ContentGetter
 from similarity_checker import SimilarityChecker, jaccard_similarity, cosine_similarity, \
     fuzzy_similarity, simhash_similarity, tokenize_and_normalize_content
-from utils import logger_level, INFO, DEBUG
-from elasticsearch import Elasticsearch
 from flask_restplus import Api, Resource, fields
-from tornado.wsgi import WSGIContainer
-from tornado.httpserver import HTTPServer
-from tornado.ioloop import IOLoop
 
 app = Flask(__name__)
 api = Api(app, doc='/doc/', version='1.0', title='Web pages similarity')
 
-logger_level = DEBUG
-
-es_client = Elasticsearch()
 crawler = PageCrawler()
 extractor = DragnetPageExtractor()
 content_getter = ContentGetter(crawler=crawler, extractor=extractor)
-similarity_checker = SimilarityChecker(content_getter=content_getter, similarity=jaccard_similarity)
-
+similarity_checker = SimilarityChecker(content_getter=content_getter, similarity=cosine_similarity)
 
 sim_check_params = api.model('sim_check_params', {
-    'main_url': fields.String(default='http://edition.cnn.com/2015/11/29/europe/syria-turkey-russia-warplane/index.html'),
-    'sub_urls': fields.String(default=["http://edition.cnn.com/2015/11/27/opinions/cagaptay-turkey-russia-tensions/index.html?iid=ob_lockedrail_topeditorial&iref=obinsite",
-                                     "http://edition.cnn.com/videos/world/2015/11/28/turkey-russia-tension-dougherty-cnni-nr-lklv.cnn?iid=ob_lockedrail_topeditorial&iref=obinsite",
-                                     "http://edition.cnn.com/2015/02/10/europe/ukraine-war-how-we-got-here/index.html",
-                                     "http://edition.cnn.com/2015/11/19/asia/north-south-korea-talks/index.html"])
+    'main_url': fields.String(
+        default='http://edition.cnn.com/2015/11/29/europe/syria-turkey-russia-warplane/index.html'),
+    'sub_urls': fields.String(default=[
+        "http://edition.cnn.com/2015/11/27/opinions/cagaptay-turkey-russia-tensions/index.html?iid=ob_lockedrail_topeditorial&iref=obinsite",
+        "http://edition.cnn.com/videos/world/2015/11/28/turkey-russia-tension-dougherty-cnni-nr-lklv.cnn?iid=ob_lockedrail_topeditorial&iref=obinsite",
+        "http://edition.cnn.com/2015/02/10/europe/ukraine-war-how-we-got-here/index.html",
+        "http://edition.cnn.com/2015/11/19/asia/north-south-korea-talks/index.html"])
 })
 
 sim_check_response = api.model('sim_check_response', {
@@ -46,11 +37,11 @@ distance_metrics = ['jaccard', 'cosine', 'fuzzy', 'simhash']
 @ns1.route('/check')
 class SimilarityCheckerResource(Resource):
     """Checking similarity between main web page and other web pages"""
-    @api.doc(params={'distance_metric': 'Distance metric to be used (currently support %s)'
+    @api.doc(params={'distance_metric': 'Distance metric to be used (currently support %s), default is `cosine`'
                                         % ', '.join(distance_metrics),
                      'main_url': 'Main url for checking similarity',
                      'sub_urls': 'Sub urls to be checked (urls are separated by comma)',
-                     'unit': 'Unit of ngram, support value are word or character, default is word',
+                     'unit': 'Unit of ngram, support value are word or character, default is `word`',
                      'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
                      'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
     @api.response(200, 'Success', model=sim_check_response)
@@ -68,7 +59,9 @@ class SimilarityCheckerResource(Resource):
         similarity_checker.min_ngram = min_ngram
         similarity_checker.max_ngram = max_ngram
         distance_metric = request.values.get('distance_metric', '')
-        if not distance_metric or distance_metric not in distance_metrics:
+        if not distance_metric:
+            similarity_checker.similarity = cosine_similarity
+        elif distance_metric not in distance_metrics:
             result['error'] = 'distance_metric must be in %s' % ', '.join(distance_metrics)
 
         elif distance_metric == 'jaccard':
@@ -145,7 +138,7 @@ ns2 = api.namespace('page', 'Page Extractor')
 class PageExtractorResource(Resource):
     """Extract content from crawled web pages"""
     @api.doc(params={'urls': 'The urls to be extracted content (If many urls, separate by comma)',
-                     'unit': 'Unit of ngram, support value are word or character, default is word',
+                     'unit': 'Unit of ngram, support value are word or character, default is `word`',
                      'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
                      'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
     @api.response(200, 'Success', model='page_extractor_response')
@@ -223,7 +216,7 @@ class ContentSimilarityResource(Resource):
                      'distance_metrics': 'Distance metrics to be used (currently support %s), if empty, show all '
                                          'distance metrics result, if many, separate by comma.'
                                          % ', '.join(distance_metrics),
-                     'unit': 'Unit of ngram, support value are word or character, default is word',
+                     'unit': 'Unit of ngram, support value are word or character, default is `word`',
                      'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
                      'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
     @api.response(200, 'Success', model='content_sim_response')
@@ -264,7 +257,7 @@ class ContentSimilarityResource(Resource):
 
 if __name__ == '__main__':
     # app.run(debug=True, host='107.170.109.238', port=8888)
-    # app.run()
-    http_server = HTTPServer(WSGIContainer(app))
-    http_server.listen(8888)
-    IOLoop.instance().start()
+    app.run()
+    # http_server = HTTPServer(WSGIContainer(app))
+    # http_server.listen(8888)
+    # IOLoop.instance().start()

@@ -6,7 +6,8 @@ from similarity_checker import CosineSimilarity
 from utils import logger_level, INFO, DEBUG
 from elasticsearch import Elasticsearch
 from pprint import pprint
-
+from multiprocessing.dummy import Pool
+import requests
 
 class MyTestCase(unittest.TestCase):
 
@@ -58,15 +59,23 @@ class MyTestCase(unittest.TestCase):
         result = similarity.process(self.main_url, self.sub_urls)
         pprint(result)
 
-    def test_api(self):
-        import requests
+    def _call_api(self, i):
         params = {
-            'distance_metric': 'fuzzy',
+            'distance_metric': 'cosine',
             'main_url': self.main_url,
             'sub_urls': ', '.join(self.sub_urls)
         }
-        response = requests.post('http://localhost:8888/similarity_checker/', data=params)
-        pprint(response.json())
+        response = requests.post('http://localhost:8888/similarity/check', data=params)
+        print i
+
+    def test_api(self):
+        params = {
+            'distance_metric': 'cosine',
+            'main_url': self.main_url,
+            'sub_urls': ', '.join(self.sub_urls)
+        }
+        pool = Pool(4)
+        pool.map(self._call_api, range(2000))
 
     def test_similarity_function(self):
         from similarity_checker import cosine_similarity, jaccard_similarity, fuzzy_similarity, simhash_similarity
