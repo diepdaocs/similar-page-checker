@@ -38,7 +38,7 @@ class PageCrawler(object):
         }
         if url:
             try:
-                response = requests.get(url)
+                response = requests.get(url, verify=False)
                 # raise exception when something error
                 if response.status_code == requests.codes.ok:
                     result[url]['content'] = response.content
