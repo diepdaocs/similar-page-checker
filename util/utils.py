@@ -13,9 +13,9 @@ NOTSET = logging.NOTSET
 
 _LOGGERS = {}
 
-logger_level = INFO
+logger_level = DEBUG
 
-logs_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'logs')
+logs_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../logs')
 
 if not os.path.exists(logs_dir):
     os.makedirs(logs_dir)
@@ -40,3 +40,9 @@ def get_logger(name, level=logger_level, log_file=os.path.join(logs_dir, '%s.log
 
     _LOGGERS[name] = logger
     return logger
+
+
+def get_unicode(text):
+    if isinstance(text, unicode):
+        return text
+    return unicode(text, encoding='utf-8', errors='ignore')

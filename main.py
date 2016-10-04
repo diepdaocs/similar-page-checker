@@ -1,7 +1,8 @@
 from flask import request, Flask, jsonify
-from crawler import PageCrawler
-from extractor import DragnetPageExtractor
-from content_getter import ContentGetter
+from parser.crawler import PageCrawler
+from parser.content_getter import ContentGetter
+from parser.extractor import DragnetPageExtractor, ReadabilityPageExtractor, GoosePageExtractor, \
+    GooseDragnetPageExtractor, SelectivePageExtractor
 from similarity_checker import SimilarityChecker, jaccard_similarity, cosine_similarity, \
     fuzzy_similarity, simhash_similarity, tokenize_and_normalize_content
 from flask_restplus import Api, Resource, fields
@@ -13,6 +14,25 @@ crawler = PageCrawler()
 extractor = DragnetPageExtractor()
 content_getter = ContentGetter(crawler=crawler, extractor=extractor)
 similarity_checker = SimilarityChecker(content_getter=content_getter, similarity=cosine_similarity)
+
+list_extractor = ['dragnet', 'goose', 'goose_dragnet', 'readability', 'selective']
+
+
+def get_extractor(name):
+    if name == 'dragnet':
+        return DragnetPageExtractor()
+    elif name == 'readability':
+        return ReadabilityPageExtractor()
+    elif name == 'goose':
+        return GoosePageExtractor()
+    elif name == 'goose_dragnet':
+        return GooseDragnetPageExtractor()
+    elif name == 'selective':
+        return SelectivePageExtractor(selector='')
+    else:
+        return None
+
+list_selector_type = ['css', 'xpath']
 
 sim_check_params = api.model('sim_check_params', {
     'main_url': fields.String(
@@ -33,6 +53,9 @@ ns1 = api.namespace('similarity', 'Similarity Checker')
 
 distance_metrics = ['jaccard', 'cosine', 'fuzzy', 'simhash']
 
+user_agents = ['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) ' \
+               'Chrome/39.0.2171.95 Safari/537.36']
+
 
 @ns1.route('/check')
 class SimilarityCheckerResource(Resource):
@@ -43,7 +66,20 @@ class SimilarityCheckerResource(Resource):
                      'sub_urls': 'Sub urls to be checked (urls are separated by comma)',
                      'unit': 'Unit of ngram, support value are word or character, default is `word`',
                      'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
-                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
+                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)',
+                     'extractor': 'The name of extractor to be used, currently support `%s`, default `%s`, '
+                                  'if the extractor name is `selective`, you must specify `main_page_selector`, '
+                                  '`sub_page_selector` and `selector_type` (default is `css`)' %
+                                  (', '.join(list_extractor), list_extractor[0]),
+                     'selector_type': 'The name of selector type to be used, currently support `%s`, default is `%s`' %
+                                  (', '.join(list_selector_type), list_selector_type[0]),
+                     'main_page_selector': 'Main page selector, if extractor is `selective`, '
+                                           'you must specify the `main_page_selector` element',
+                     'sub_page_selector': 'Sub page selector, if extractor is `selective`, '
+                                          'you must specify the `sub_page_selector` element',
+                     'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0]
+                     }
+             )
     @api.response(200, 'Success', model=sim_check_response)
     def post(self):
         """Post web pages to check similarity percentage"""
@@ -82,16 +118,46 @@ class SimilarityCheckerResource(Resource):
         sub_urls = [u.strip(strip_chars) for u in sub_url_string.split(',') if u.strip(strip_chars)]
         if not main_url:
             result['error'] = 'main_url must not blank'
+            return result
 
         if not sub_urls:
             result['error'] = 'sub_urls must not blank'
+            return result
 
         # validate params type
         if type(sub_urls) is not list:
             result['error'] = 'sub_urls must be in array type'
+            return result
+
+        extractor_name = request.values.get('extractor', list_extractor[0])
+        s_extractor = get_extractor(extractor_name)
+        if not extractor:
+            result['error'] = "The extractor name '%s' does not support yet" % extractor_name
+            return result
+        main_page_selector = None
+        sub_page_selector = None
+        if extractor_name == 'selective':
+            s_extractor.selector_type = request.values.get('selector_type', list_extractor[0])
+            main_page_selector = request.values.get('main_page_selector')
+            sub_page_selector = request.values.get('sub_page_selector')
+            if not main_page_selector or not main_page_selector.strip():
+                result['error'] = "You must specify the 'main_page_selector' element when the 'extractor' " \
+                                  "is 'selective'"
+                return result
+            if not sub_page_selector or not sub_page_selector.strip():
+                result[
+                    'error'] = "You must specify the 'sub_page_selector' element when the 'extractor' is 'selective'"
+                return result
+
+        user_agent = request.values.get('user_agent', user_agents[0])
+        s_content_getter = ContentGetter(crawler=PageCrawler(user_agent=user_agent.strip()), extractor=s_extractor)
 
         # check similarity
         if not result['error']:
+            similarity_checker.content_getter = s_content_getter
+            if main_page_selector:
+                similarity_checker.main_page_selector = main_page_selector.strip()
+                similarity_checker.sub_page_selector = sub_page_selector.strip()
             sims = similarity_checker.process(main_url=main_url, sub_urls=sub_urls)
             if sims:
                 result['similarity'] = sims
@@ -140,7 +206,17 @@ class PageExtractorResource(Resource):
     @api.doc(params={'urls': 'The urls to be extracted content (If many urls, separate by comma)',
                      'unit': 'Unit of ngram, support value are word or character, default is `word`',
                      'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
-                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
+                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)',
+                     'extractor': 'The name of extractor to be used, currently support `%s`, default `%s`' %
+                                  (', '.join(list_extractor), list_extractor[0]),
+                     'selector_type': 'The name of selector type to be used, currently support `%s`, default is `%s`, '
+                                      'if the extractor name is `selective`, you must specify the '
+                                      '`selector` and `selector_type` (default is `css`)' %
+                                  (', '.join(list_selector_type), list_selector_type[0]),
+                     'selector': 'If extractor is `selective`, you must specify the `selector` element',
+                     'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0]
+                     }
+             )
     @api.response(200, 'Success', model='page_extractor_response')
     def post(self):
         """Post web pages to extract content"""
@@ -156,9 +232,26 @@ class PageExtractorResource(Resource):
         urls = [u.strip(strip_chars) for u in urls.split(',') if u.strip(strip_chars)]
         if not urls:
             result['error'] = 'urls must not be empty'
+
+        extractor_name = request.values.get('extractor', list_extractor[0])
+        s_extractor = get_extractor(extractor_name)
+        if not extractor:
+            result['error'] = "The extractor name '%s' does not support yet" % extractor_name
+            return result
+        if extractor_name == 'selective':
+            s_extractor.selector_type = request.values.get('selector_type', list_extractor[0])
+            selector = request.values.get('selector')
+            if not selector or not selector.strip():
+                result['error'] = "You must specify the 'selector' element when the 'extractor' is 'selective'"
+                return result
+            s_extractor.selector = selector.strip()
+
+        user_agent = request.values.get('user_agent', user_agents[0])
+        s_content_getter = ContentGetter(crawler=PageCrawler(user_agent=user_agent), extractor=s_extractor)
+
         if not result['error']:
             pages = result['pages']
-            for url, page in content_getter.process(urls).items():
+            for url, page in s_content_getter.process(urls).items():
                 page['tokens'] = tokenize_and_normalize_content(page['content'], unit=unit, min_ngram=min_ngram,
                                                                 max_ngram=max_ngram)
                 pages.append((url, page))
@@ -216,9 +309,11 @@ class ContentSimilarityResource(Resource):
                      'distance_metrics': 'Distance metrics to be used (currently support %s), if empty, show all '
                                          'distance metrics result, if many, separate by comma.'
                                          % ', '.join(distance_metrics),
-                     'unit': 'Unit of ngram, support value are word or character, default is `word`',
+                     'unit': 'Unit of ngram, support value are `word` or `character`, default is `word`',
                      'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
-                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'})
+                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'
+                     }
+             )
     @api.response(200, 'Success', model='content_sim_response')
     def post(self):
         """Post content to check similarity"""
@@ -257,7 +352,7 @@ class ContentSimilarityResource(Resource):
 
 if __name__ == '__main__':
     # app.run(debug=True, host='107.170.109.238', port=8888)
-    app.run()
+    app.run(debug=True)
     # http_server = HTTPServer(WSGIContainer(app))
     # http_server.listen(8888)
     # IOLoop.instance().start()

@@ -13,3 +13,6 @@ fuzzywuzzy>=0.8.0
 simhash>=1.6.2
 gunicorn>=19.4.1
 tornado>=4.3
+readability-lxml
+beautifulsoup4
+goose-extractor
