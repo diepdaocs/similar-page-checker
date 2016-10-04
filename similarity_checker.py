@@ -1,6 +1,6 @@
 import math
 from fuzzywuzzy import fuzz
-from utils import get_logger
+from util.utils import get_logger
 from elasticsearch.helpers import bulk
 import uuid
 import traceback
@@ -89,9 +89,12 @@ def simhash_similarity(tokens_1, tokens_2):
 
 
 class SimilarityChecker(object):
-    def __init__(self, content_getter, similarity, unit='word', min_ngram=1, max_ngram=1):
+    def __init__(self, content_getter, similarity, unit='word', min_ngram=1, max_ngram=1, main_page_selector=None,
+                 sub_page_selector=None):
         self.similarity = similarity
         self.content_getter = content_getter
+        self.main_page_selector = main_page_selector
+        self.sub_page_selector = sub_page_selector
         self.unit = unit
         self.min_ngram = min_ngram
         self.max_ngram = max_ngram
@@ -104,7 +107,15 @@ class SimilarityChecker(object):
         main_url = pre_process_urls([main_url])[0]
         urls = [main_url] + sub_urls
         # crawl and extract page content
-        pages = self.content_getter.process(urls)
+        pages = {}
+        if self.main_page_selector:
+            self.content_getter.extractor.selector = self.main_page_selector
+            pages.update(self.content_getter.process([main_url]))
+            self.content_getter.extractor.selector = self.sub_page_selector
+            pages.update(self.content_getter.process(sub_urls))
+        else:
+            pages = self.content_getter.process(urls)
+
         # verify main page
         main_page = pages[main_url]['content']
         if not main_page:
