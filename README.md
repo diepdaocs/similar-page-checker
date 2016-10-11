@@ -120,7 +120,7 @@ sudo supervisorctl update
 ```
 
 # Upgrade to new version #
-This is step by step:
+This is step by step:  
 1. Update source code: `git pull`  
 2. Install new libraries: `pip install -r requirements.txt`  
 If any errors, run this command to install required libs in ubuntu: `sudo apt-get update && sudo apt-get install -y libxml2-dev libxslt1-dev zlib1g-dev libjpeg62-turbo-dev`  
