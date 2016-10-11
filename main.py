@@ -2,7 +2,7 @@ from flask import request, Flask, jsonify
 from parser.crawler import PageCrawler
 from parser.content_getter import ContentGetter
 from parser.extractor import DragnetPageExtractor, ReadabilityPageExtractor, GoosePageExtractor, \
-    GooseDragnetPageExtractor, SelectivePageExtractor
+    GooseDragnetPageExtractor, SelectivePageExtractor, AllTextPageExtractor
 from similarity_checker import SimilarityChecker, jaccard_similarity, cosine_similarity, \
     fuzzy_similarity, simhash_similarity, tokenize_and_normalize_content
 from flask_restplus import Api, Resource, fields
@@ -15,7 +15,7 @@ extractor = DragnetPageExtractor()
 content_getter = ContentGetter(crawler=crawler, extractor=extractor)
 similarity_checker = SimilarityChecker(content_getter=content_getter, similarity=cosine_similarity)
 
-list_extractor = ['dragnet', 'goose', 'goose_dragnet', 'readability', 'selective']
+list_extractor = ['dragnet', 'goose', 'goose_dragnet', 'readability', 'selective', 'all_text']
 
 
 def get_extractor(name):
@@ -29,6 +29,8 @@ def get_extractor(name):
         return GooseDragnetPageExtractor()
     elif name == 'selective':
         return SelectivePageExtractor(selector='')
+    elif name == 'all_text':
+        return AllTextPageExtractor()
     else:
         return None
 

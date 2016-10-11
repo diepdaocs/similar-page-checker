@@ -38,6 +38,8 @@ class PageExtractor(object):
                 func = goose_dragnet_extractor
             elif isinstance(self, SelectivePageExtractor):
                 func = selective_extractor
+            elif isinstance(self, AllTextPageExtractor):
+                func = all_text_extractor
             # use multi thread to crawl pages
             pool = Pool(cpu_count())
             if isinstance(self, SelectivePageExtractor):
@@ -116,6 +118,29 @@ def dragnet_extractor((url, raw_content)):
         logger.error('Unicode issue: %s' % ex.message)
 
     logger.debug('End dragnet_extractor: %s' % url)
+    return url, result
+
+
+def visible(element):
+    if element.parent.name in ['style', 'script', '[document]', 'head', 'title']:
+        return False
+    elif re.match('<!--.*-->', get_unicode(element)):
+        return False
+    return True
+
+
+def all_text_extractor((url, raw_content)):
+    logger.debug('Start all_text_extractor: %s' % url)
+    result = ''
+    try:
+        soup = BeautifulSoup(raw_content, 'html.parser')
+        texts = soup.findAll(text=True)
+        visible_texts = filter(visible, texts)
+        result = ', '.join(get_unicode(t.strip()) for t in visible_texts if t and t.strip())
+    except Exception as ex:
+        logger.error('All text extractor: %s' % ex.message)
+
+    logger.debug('End all_text_extractor: %s' % url)
     return url, result
 
 
@@ -276,6 +301,15 @@ class GooseDragnetPageExtractor(PageExtractor):
 
     def extract(self, (url, raw_content)):
         return goose_dragnet_extractor((url, raw_content))
+
+
+class AllTextPageExtractor(PageExtractor):
+
+    def __init__(self):
+        super(AllTextPageExtractor, self).__init__()
+
+    def extract(self, (url, raw_content)):
+        return all_text_extractor((url, raw_content))
 
 
 class SelectivePageExtractor(PageExtractor):
