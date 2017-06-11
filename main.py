@@ -55,7 +55,7 @@ ns1 = api.namespace('similarity', 'Similarity Checker')
 
 distance_metrics = ['jaccard', 'cosine', 'fuzzy', 'simhash']
 
-user_agents = ['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) ' \
+user_agents = ['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) '
                'Chrome/39.0.2171.95 Safari/537.36']
 
 
@@ -101,6 +101,7 @@ class SimilarityCheckerResource(Resource):
             similarity_checker.similarity = cosine_similarity
         elif distance_metric not in distance_metrics:
             result['error'] = 'distance_metric must be in %s' % ', '.join(distance_metrics)
+            return result
 
         elif distance_metric == 'jaccard':
             similarity_checker.similarity = jaccard_similarity
@@ -165,6 +166,122 @@ class SimilarityCheckerResource(Resource):
                 result['similarity'] = sims
             else:
                 result['error'] = 'Main page is empty'
+
+        return jsonify(result)
+
+
+@ns1.route('/cross-check')
+class SimilarityCrossCheckerResource(Resource):
+    """Checking similarity between main web page and other web pages"""
+    @api.doc(params={'distance_metric': 'Distance metric to be used (currently support %s), default is `cosine`'
+                                        % ', '.join(distance_metrics),
+                     'url_1': 'Url 1',
+                     'url_2': 'Url 2',
+                     'url_3': 'Url 3',
+                     'unit': 'Unit of ngram, support value are word or character, default is `word`',
+                     'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
+                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)',
+                     'extractor': 'The name of extractor to be used, currently support `%s`, default `%s`, '
+                                  'if the extractor name is `selective`, you must specify `main_page_selector`, '
+                                  '`sub_page_selector` and `selector_type` (default is `css`)' %
+                                  (', '.join(list_extractor), list_extractor[0]),
+                     'selector_type': 'The name of selector type to be used, currently support `%s`, default is `%s`' %
+                                  (', '.join(list_selector_type), list_selector_type[0]),
+                     'url_1_selector': 'Url 1 selector, if extractor is `selective`, '
+                                       'you must specify the `url_1_selector` element',
+                     'url_2_selector': 'Url 2 selector, if extractor is `selective`, '
+                                       'you must specify the `url_2_selector` element',
+                     'url_3_selector': 'Url 3 selector, if extractor is `selective`, '
+                                       'you must specify the `url_3_selector` element',
+                     'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0]
+                     }
+             )
+    @api.response(200, 'Success')
+    def post(self):
+        """Post web pages to check similarity percentage"""
+        result = {
+            'error': False,
+            'similarity': []
+        }
+        # get request params
+        unit = request.values.get('unit', 'word')
+        min_ngram = int(request.values.get('min_ngram', 1))
+        max_ngram = int(request.values.get('max_ngram', 1))
+        similarity_checker.unit = unit
+        similarity_checker.min_ngram = min_ngram
+        similarity_checker.max_ngram = max_ngram
+        distance_metric = request.values.get('distance_metric', '')
+        if not distance_metric:
+            similarity_checker.similarity = cosine_similarity
+        elif distance_metric not in distance_metrics:
+            result['error'] = 'distance_metric must be in %s' % ', '.join(distance_metrics)
+            return result
+
+        elif distance_metric == 'jaccard':
+            similarity_checker.similarity = jaccard_similarity
+
+        elif distance_metric == 'cosine':
+            similarity_checker.similarity = cosine_similarity
+
+        elif distance_metric == 'fuzzy':
+            similarity_checker.similarity = fuzzy_similarity
+
+        elif distance_metric == 'simhash':
+            similarity_checker.similarity = simhash_similarity
+
+        url_1 = request.values.get('url_1', '')
+        url_2 = request.values.get('url_2', '')
+        url_3 = request.values.get('url_3', '')
+        if not url_1:
+            result['error'] = 'url_1 must not blank'
+            return result
+
+        if not url_2:
+            result['error'] = 'url_2 must not blank'
+            return result
+
+        if not url_3:
+            result['error'] = 'url_3 must not blank'
+            return result
+
+        extractor_name = request.values.get('extractor', list_extractor[0])
+        s_extractor = get_extractor(extractor_name)
+        if not extractor:
+            result['error'] = "The extractor name '%s' does not support yet" % extractor_name
+            return result
+        url_1_selector = None
+        url_2_selector = None
+        url_3_selector = None
+        if extractor_name == 'selective':
+            s_extractor.selector_type = request.values.get('selector_type', list_extractor[0])
+            url_1_selector = request.values.get('url_1_selector')
+            url_2_selector = request.values.get('url_2_selector')
+            url_3_selector = request.values.get('url_3_selector')
+            if not url_1_selector or not url_1_selector.strip():
+                result['error'] = "You must specify the 'url_1_selector' element when the 'extractor' " \
+                                  "is 'selective'"
+                return result
+            if not url_2_selector or not url_2_selector.strip():
+                result[
+                    'error'] = "You must specify the 'url_2_selector' element when the 'extractor' is 'selective'"
+                return result
+            if not url_3_selector or not url_3_selector.strip():
+                result[
+                    'error'] = "You must specify the 'url_3_selector' element when the 'extractor' is 'selective'"
+                return result
+
+        user_agent = request.values.get('user_agent', user_agents[0])
+        s_content_getter = ContentGetter(crawler=PageCrawler(user_agent=user_agent.strip()), extractor=s_extractor)
+
+        # check similarity
+        if not result['error']:
+            similarity_checker.content_getter = s_content_getter
+            similarity_checker.url_1_selector = url_1_selector
+            similarity_checker.url_2_selector = url_2_selector
+            similarity_checker.url_3_selector = url_3_selector
+            sims = similarity_checker.cross_process(url_1, url_2, url_3)
+            if sims:
+                result['similarity'] = sims
 
         return jsonify(result)
 
@@ -340,17 +457,74 @@ class ContentSimilarityResource(Resource):
         if not selected_dm:
             selected_dm = distance_metrics
 
-        distances = result['distances']
-        for dm_name in selected_dm:
-            sim_checker = get_similarity_checker(dm_name)
-            if sim_checker:
-                distances.append({dm_name: sim_checker(content_1, content_2)})
-            else:
-                distances.append({dm_name: 'Distance metric %s do not existed, we support only %s' %
-                                           (dm_name, ', '.join(distance_metrics))})
+        result['distances'] = cal_distances(content_1, content_2, selected_dm)
 
         return jsonify(result)
 
+
+@ns3.route('/cross-similarity')
+class ContentCrossSimilarityResource(Resource):
+    """Check similarity between content"""
+    @api.doc(params={'content_1': 'Content to be checked', 'content_2': 'Another content to be checked',
+                     'content_3': 'Another content to be checked',
+                     'distance_metrics': 'Distance metrics to be used (currently support %s), if empty, show all '
+                                         'distance metrics result, if many, separate by comma.'
+                                         % ', '.join(distance_metrics),
+                     'unit': 'Unit of ngram, support value are `word` or `character`, default is `word`',
+                     'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
+                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)'
+                     }
+             )
+    @api.response(200, 'Success')
+    def post(self):
+        """Post content to check similarity"""
+        result = {
+            'error': False,
+            'distances12': [],
+            'distances23': [],
+            'distances13': [],
+            'tokens_1': [],
+            'tokens_2': [],
+            'tokens_3': []
+        }
+        unit = request.values.get('unit', 'word')
+        min_ngram = int(request.values.get('min_ngram', 1))
+        max_ngram = int(request.values.get('max_ngram', 1))
+        content_1 = tokenize_and_normalize_content(request.values.get('content_1', ''), unit=unit, min_ngram=min_ngram,
+                                                   max_ngram=max_ngram)
+        content_2 = tokenize_and_normalize_content(request.values.get('content_2', ''), unit=unit, min_ngram=min_ngram,
+                                                   max_ngram=max_ngram)
+        content_3 = tokenize_and_normalize_content(request.values.get('content_3', ''), unit=unit, min_ngram=min_ngram,
+                                                   max_ngram=max_ngram)
+        result['tokens_1'] = content_1
+        result['tokens_2'] = content_2
+        result['tokens_3'] = content_3
+        selected_dm = request.values.get('distance_metrics', '')
+        strip_chars = ' "\''
+        selected_dm = [d.strip(strip_chars).lower() for d in selected_dm.split(',') if d.strip(strip_chars)]
+        if not selected_dm:
+            selected_dm = distance_metrics
+
+        result.update({
+            'distances12': cal_distances(content_1, content_2, selected_dm),
+            'distances23': cal_distances(content_2, content_3, selected_dm),
+            'distances13': cal_distances(content_1, content_3, selected_dm)
+        })
+
+        return jsonify(result)
+
+
+def cal_distances(content_1, content_2, selected_dm):
+    distances = []
+    for dm_name in selected_dm:
+        sim_checker = get_similarity_checker(dm_name)
+        if sim_checker:
+            distances.append({dm_name: sim_checker(content_1, content_2)})
+        else:
+            distances.append({dm_name: 'Distance metric %s do not existed, we support only %s' %
+                                       (dm_name, ', '.join(distance_metrics))})
+
+    return distances
 
 if __name__ == '__main__':
     # app.run(debug=True, host='107.170.109.238', port=8888)

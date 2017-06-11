@@ -4,10 +4,13 @@ from util.utils import get_logger
 from elasticsearch.helpers import bulk
 import uuid
 import traceback
-from nltk import wordpunct_tokenize
+from nltk.tokenize.toktok import ToktokTokenizer
 from nltk.util import ngrams
 import string
 from simhash import Simhash
+
+
+tokenize = ToktokTokenizer().tokenize
 
 
 def pre_process_urls(urls):
@@ -34,9 +37,9 @@ def tokenize_and_normalize_content(content, unit='word', min_ngram=1, max_ngram=
 
     # pre tokenize
     words = []
-    for word in wordpunct_tokenize(content):
+    for word in tokenize(content):
         word = word.strip(string.punctuation).lower()
-        if not word or len(word) == 1:
+        if not word:
             continue
         words.append(word)
 
@@ -85,16 +88,21 @@ def fuzzy_similarity(tokens_1, tokens_2):
 
 
 def simhash_similarity(tokens_1, tokens_2):
+    if not tokens_1 or not tokens_2:
+        return 0
     return 100 - Simhash(tokens_1).distance(Simhash(tokens_2))
 
 
 class SimilarityChecker(object):
     def __init__(self, content_getter, similarity, unit='word', min_ngram=1, max_ngram=1, main_page_selector=None,
-                 sub_page_selector=None):
+                 sub_page_selector=None, url_1_selector=None, url_2_selector=None, url_3_selector=None):
         self.similarity = similarity
         self.content_getter = content_getter
         self.main_page_selector = main_page_selector
         self.sub_page_selector = sub_page_selector
+        self.url_1_selector = url_1_selector
+        self.url_2_selector = url_2_selector
+        self.url_3_selector = url_3_selector
         self.unit = unit
         self.min_ngram = min_ngram
         self.max_ngram = max_ngram
@@ -105,16 +113,23 @@ class SimilarityChecker(object):
         # pre process urls
         sub_urls = pre_process_urls(sub_urls)
         main_url = pre_process_urls([main_url])[0]
-        urls = [main_url] + sub_urls
         # crawl and extract page content
         pages = {}
+        whole_content_urls = []
         if self.main_page_selector:
             self.content_getter.extractor.selector = self.main_page_selector
             pages.update(self.content_getter.process([main_url]))
+        else:
+            whole_content_urls.append(main_url)
+
+        if self.sub_page_selector:
             self.content_getter.extractor.selector = self.sub_page_selector
             pages.update(self.content_getter.process(sub_urls))
         else:
-            pages = self.content_getter.process(urls)
+            whole_content_urls.extend(sub_urls)
+
+        if whole_content_urls:
+            pages = self.content_getter.process(whole_content_urls)
 
         # verify main page
         main_page = pages[main_url]['content']
@@ -143,6 +158,60 @@ class SimilarityChecker(object):
         result.sort(key=lambda x: x[1], reverse=True)
         self.logger.debug('Similarity result: %s' % result)
         return result
+
+    def cross_process(self, url_1, url_2, url_3):
+        result = {}
+        # pre process urls
+        url_1 = pre_process_urls([url_1])[0]
+        url_2 = pre_process_urls([url_2])[0]
+        url_3 = pre_process_urls([url_3])[0]
+        # crawl and extract page content
+        pages = {}
+        whole_content_urls = []
+        if self.url_1_selector:
+            self.content_getter.extractor.selector = self.url_1_selector
+            pages.update(self.content_getter.process([url_1]))
+        else:
+            whole_content_urls.append(url_1)
+
+        if self.url_2_selector:
+            self.content_getter.extractor.selector = self.url_2_selector
+            pages.update(self.content_getter.process([url_2]))
+        else:
+            whole_content_urls.append(url_2)
+
+        if self.url_3_selector:
+            self.content_getter.extractor.selector = self.url_3_selector
+            pages.update(self.content_getter.process([url_3]))
+        else:
+            whole_content_urls.append(url_3)
+
+        if whole_content_urls:
+            pages = self.content_getter.process(whole_content_urls)
+
+        # tokenize content into words
+        for url, page in pages.items():
+            page['content'] = tokenize_and_normalize_content(page['content'], unit=self.unit,
+                                                             min_ngram=self.min_ngram, max_ngram=self.max_ngram)
+
+        # check similarity
+        result.update({
+            'sim12': cal_sim(pages, url_1, url_2, self.similarity),
+            'sim23': cal_sim(pages, url_2, url_3, self.similarity),
+            'sim13': cal_sim(pages, url_1, url_3, self.similarity),
+        })
+        self.logger.debug('Similarity result: %s' % result)
+        return result
+
+
+def cal_sim(pages, url_1, url_2, sim_func):
+    page_1 = pages[url_1]
+    page_2 = pages[url_2]
+    if page_1.get('error'):
+        return 'Page not found: %s' % url_1
+    if page_2.get('error'):
+        return 'Page not found: %s' % url_2
+    return sim_func(page_1['content'], page_2['content'])
 
 
 class CosineSimilarity(object):
