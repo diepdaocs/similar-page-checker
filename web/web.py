@@ -1,4 +1,6 @@
 import os
+import time
+from datetime import datetime
 from multiprocessing import Pool, cpu_count, Process
 from uuid import uuid4
 
@@ -20,7 +22,7 @@ app.config['ALLOWED_EXTENSIONS'] = sup_file_type
 
 logger = get_logger(__name__)
 
-redis = StrictRedis()
+redis = StrictRedis(db=1)
 
 
 # For a given file, return whether it's an allowed type or not
@@ -67,7 +69,7 @@ def cross_check_sim():
     process = Process(target=process_job, args=(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file))
     process.start()
 
-    return redirect(url_for('job', job_id=job_id))
+    return redirect(url_for('job_list'))
 
 
 @app.route('/job-redirect')
@@ -76,8 +78,29 @@ def job_redirect():
     return redirect(url_for('job', job_id=job_id))
 
 
+@app.route('/job')
+def job_list():
+    return render_template('job_list.html')
+
+
+@app.route('/job/update')
+def update_jobs():
+    jobs = []
+    for h in redis.keys():
+        jb = redis.hgetall(h)
+        jb['id'] = h
+        jobs.append(jb)
+
+    jobs = sorted(jobs, key=lambda j: j.get('start', 0), reverse=True)
+    for jb in jobs:
+        jb['file'] = 'result-for-job_%s.csv' % jb['id']
+        jb['start'] = datetime.fromtimestamp(float(jb['start'])).strftime('%Y-%m-%d %H:%M:%S')
+        jb['complete'] = round(float(jb.get('progress', 0)) / float(jb['size']) * 100, 0)
+    return jsonify(jobs=jobs)
+
+
 @app.route('/job/<job_id>')
-def job(job_id):
+def job_info(job_id):
     output_file = 'result-for-job_%s.csv' % job_id
     return render_template('job.html', job_id=job_id, output_file=output_file)
 
@@ -87,7 +110,8 @@ def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file
     df['distance12'] = ''
     df['distance23'] = ''
     df['distance13'] = ''
-    redis.set(job_id + '-size', len(df.index))
+    redis.hset(job_id, 'size', len(df.index))
+    redis.hset(job_id, 'start', time.time())
     tasks = [(row['content1'], row['content2'], row['content3'], selected_dm, unit, min_ngram, max_ngram, job_id)
              for idx, row in df.iterrows()]
 
@@ -116,7 +140,7 @@ def cross_check_similarity(content_1, content_2, content_3, selected_dm, unit, m
                                               max_ngram=max_ngram)
     tokens_3 = tokenize_and_normalize_content(content_3, unit=unit, min_ngram=min_ngram,
                                               max_ngram=max_ngram)
-    redis.incr(job_id + '-progress')
+    redis.hincrby(job_id, 'progress')
 
     return {
         'distance12': sim_checker(tokens_1, tokens_2),
@@ -133,4 +157,5 @@ def download_file(filename):
 
 @app.route('/get-progress/<job_id>')
 def get_progress(job_id=None):
-    return jsonify(total=redis.get(job_id + '-size') or 0, finished=redis.get(job_id + '-progress') or 0)
+    jb = redis.hgetall(job_id) or {}
+    return jsonify(total=jb.get('size') or 0, finished=jb.get('progress') or 0)
