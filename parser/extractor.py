@@ -25,7 +25,7 @@ class PageExtractor(object):
     def process(self, pages):
         self.logger.debug('Start extract pages: %s' % pages.keys())
         item_num = len(pages)
-        if item_num > 2:
+        if item_num > 10:
             # get function
             func = dragnet_extractor
             if isinstance(self, DragnetPageExtractor):

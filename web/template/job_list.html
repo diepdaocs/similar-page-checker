@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="container">
+  <h2>Job List</h2>
+  <div class="list-group"></div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+	function build_job_ui(job) {
+	    var file_url = {{ url_for('download_file', filename='') }};
+		var job_html = '<a href="#" class="list-group-item">';
+    	job_html    += '	<h4 class="list-group-item-heading">Job id: {0}</h4>'.format(job.id);
+    	if (job.complete < 100) {
+    		// Show progress bar
+    		job_html    += '	<div class="progress">';
+        	job_html    += '		<div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="{0}" aria-valuemin="0" aria-valuemax="{1}" style="width:{2}%">'.format(job.progress, job.size, job.complete);
+        	job_html    +=     		'{0}% complete ({1}/{2})</div>'.format(job.complete, job.progress, job.size);
+    		job_html    += '	</div>';
+    	} else {
+    		// Show download button
+    		job_html    += '	<form role="form" class="form-inline" action="{0}" method="GET" enctype="multipart/form-data"> <i>{1}</i> <input type="submit" value="Download" class="btn btn-default">'.format(file_url + job.file, job.file);
+    		job_html    += '	</form>';
+    	}
+    	job_html    += '	<p class="list-group-item-text">Created at: {0}</p>'.format(job.start);
+    	job_html    += '</a>';
+    	return job_html;
+	}
+
+    function updateJobs() {
+    	var job_container = $('div.list-group');
+        $.ajax({url: '{{ url_for('update_jobs') }}', success: function(data) {
+        	job_container.html('');
+            jobs = data.jobs;
+            jobs.forEach(function(job) {
+            	job_container.append(build_job_ui(job));
+            });
+        }});
+        // Update jobs info every 1 second
+        setTimeout(updateJobs, 1000);
+    }
+    updateJobs();
+</script>
+{% endblock %}
