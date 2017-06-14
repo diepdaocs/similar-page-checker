@@ -64,7 +64,6 @@ def cross_check_sim():
     if missing_fields:
         return render_template('message.html', message='File csv must contain "%s" field(s)'
                                                        % ', '.join(missing_fields))
-    os.remove(file_text_path)
     output_file = '%s_result-for-job_%s.csv' % (file_text_name, job_id)
     process = Process(target=process_job, args=(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file))
     process.start()
