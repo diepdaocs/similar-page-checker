@@ -65,7 +65,7 @@ def cross_check_sim():
         return render_template('message.html', message='File csv must contain "%s" field(s)'
                                                        % ', '.join(missing_fields))
     os.remove(file_text_path)
-    output_file = 'result-for-job_%s.csv' % job_id
+    output_file = '%s_result-for-job_%s.csv' % (file_text_name, job_id)
     process = Process(target=process_job, args=(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file))
     process.start()
 
@@ -93,7 +93,6 @@ def update_jobs():
 
     jobs = sorted(jobs, key=lambda j: j.get('start', 0), reverse=True)
     for jb in jobs:
-        jb['file'] = 'result-for-job_%s.csv' % jb['id']
         jb['start'] = datetime.fromtimestamp(float(jb['start'])).strftime('%Y-%m-%d %H:%M:%S')
         jb['complete'] = round(float(jb.get('progress', 0)) / float(jb['size']) * 100, 0)
     return jsonify(jobs=jobs)
@@ -112,6 +111,7 @@ def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file
     df['distance13'] = ''
     redis.hset(job_id, 'size', len(df.index))
     redis.hset(job_id, 'start', time.time())
+    redis.hset(job_id, 'file', output_file)
     tasks = [(row['content1'], row['content2'], row['content3'], selected_dm, unit, min_ngram, max_ngram, job_id)
              for idx, row in df.iterrows()]
 
