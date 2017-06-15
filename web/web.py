@@ -17,7 +17,7 @@ from util.utils import get_logger
 # This is the path to the upload directory
 app.config['UPLOAD_FOLDER'] = 'web/upload'
 # These are the extension that we are accepting to be uploaded
-sup_file_type = {'csv'}
+sup_file_type = {'csv', 'txt'}
 app.config['ALLOWED_EXTENSIONS'] = sup_file_type
 
 logger = get_logger(__name__)
@@ -53,7 +53,16 @@ def cross_check_sim():
     file_text_name = os.path.splitext(secure_filename(file_text.filename))[0]
     file_text_path = os.path.join(app.config['UPLOAD_FOLDER'], '%s_input-with-job_%s.csv' % (file_text_name, job_id))
     file_text.save(file_text_path)
-    df = pd.read_csv(file_text_path, delimiter='\t')
+    try:
+        df = pd.read_csv(file_text_path, delimiter='\t', encoding='utf-8')
+    except UnicodeDecodeError, e:
+        logger.error(e)
+        return render_template('message.html', message='Your input file "%s" must be in UTF-8 encoding'
+                                                       % file_text.filename)
+    except Exception, e:
+        logger.error(e)
+        return render_template('message.html', message='Error when reading file "%s": %s'
+                                                       % (file_text.filename, e.message))
 
     # Check required fields
     require_fields = ['content1', 'content2', 'content2']
@@ -122,7 +131,7 @@ def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file
         row['distance23'] = result[idx]['distance23']
         row['distance13'] = result[idx]['distance13']
 
-    df.to_csv(os.path.join(app.config['UPLOAD_FOLDER'], output_file), index=False, encoding='utf-8', sep='\t')
+    df.to_csv(os.path.join(app.config['UPLOAD_FOLDER'], output_file), index=False, sep='\t', encoding='utf-8')
 
 
 def cross_check_similarity_wrapper(args):
