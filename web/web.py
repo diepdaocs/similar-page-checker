@@ -53,7 +53,7 @@ def cross_check_sim():
     file_text_name = secure_filename(file_text.filename)
     file_text_path = os.path.join(app.config['UPLOAD_FOLDER'], '%s_%s' % (job_id, file_text_name))
     file_text.save(file_text_path)
-    df = pd.read_csv(file_text_path, encoding='utf-8', delimiter='\t')
+    df = pd.read_csv(file_text_path, delimiter='\t')
 
     # Check required fields
     require_fields = ['content1', 'content2', 'content2']
