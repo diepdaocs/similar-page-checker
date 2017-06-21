@@ -47,7 +47,7 @@ def cross_check_sim():
 
     file_text = request.files.get('file_text')
     if not file_text or not allowed_file(file_text.filename):
-        return render_template('message.html', message='File type is not supported, supported file type is %s'
+        return render_template('message.html', message='ERROR: File type is not supported, supported file type is %s'
                                                        % ', '.join(sup_file_type))
 
     file_text_name = os.path.splitext(secure_filename(file_text.filename))[0]
@@ -57,7 +57,7 @@ def cross_check_sim():
         df = pd.read_csv(file_text_path, delimiter='\t', encoding='utf-8')
     except UnicodeDecodeError, e:
         logger.error(e)
-        return render_template('message.html', message='Your input file "%s" must be in UTF-8 encoding'
+        return render_template('message.html', message='ERROR: Your input file "%s" must be in UTF-8 encoding'
                                                        % file_text.filename)
     except Exception, e:
         logger.error(e)
@@ -71,7 +71,7 @@ def cross_check_sim():
         if field not in df:
             missing_fields.append(field)
     if missing_fields:
-        return render_template('message.html', message='File csv must contain "%s" field(s)'
+        return render_template('message.html', message='ERROR: File csv must contain "%s" field(s)'
                                                        % ', '.join(missing_fields))
     output_file = '%s_result-for-job_%s.csv' % (file_text_name, job_id)
     process = Process(target=process_job, args=(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file))
