@@ -69,12 +69,12 @@ def cross_check_sim():
         else:
             df = pd.read_csv(file_text_path, delimiter='\t')
     except UnicodeDecodeError, e:
-        logger.error(e)
+        logger.exception(e)
         return render_template('message.html', message='ERROR: Your input file "%s" must be in UTF-8 encoding'
                                                        % file_text.filename)
     except Exception, e:
         logger.exception(e)
-        return render_template('message.html', message='Error when reading file "%s": %s'
+        return render_template('message.html', message='ERROR: Fail reading file "%s": %s'
                                                        % (file_text.filename, e.message))
 
     # Check required fields
