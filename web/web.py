@@ -17,8 +17,11 @@ from util.utils import get_logger
 # This is the path to the upload directory
 app.config['UPLOAD_FOLDER'] = 'web/upload'
 # These are the extension that we are accepting to be uploaded
-sup_file_type = {'csv', 'txt'}
+excel_extensions = {'xls', 'xlsx'}
+sup_file_type = {'csv', 'txt'} | excel_extensions
 app.config['ALLOWED_EXTENSIONS'] = sup_file_type
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # Accept max 1GB file
+
 
 logger = get_logger(__name__)
 
@@ -29,6 +32,11 @@ redis = StrictRedis(db=1)
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1] in app.config['ALLOWED_EXTENSIONS']
+
+
+def is_excel_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1] in excel_extensions
 
 
 @app.route('/ui')
@@ -50,22 +58,27 @@ def cross_check_sim():
         return render_template('message.html', message='File type is not supported, supported file type is %s'
                                                        % ', '.join(sup_file_type))
 
-    file_text_name = os.path.splitext(secure_filename(file_text.filename))[0]
-    file_text_path = os.path.join(app.config['UPLOAD_FOLDER'], '%s_input-with-job_%s.csv' % (file_text_name, job_id))
+    file_com = os.path.splitext(secure_filename(file_text.filename))
+    file_text_name = file_com[0]
+    file_text_path = os.path.join(app.config['UPLOAD_FOLDER'], '%s_input-with-job_%s.%s' %
+                                  (file_text_name, job_id, file_com[1]))
     file_text.save(file_text_path)
     try:
-        df = pd.read_csv(file_text_path, delimiter='\t', encoding='utf-8')
+        if is_excel_file(file_text.filename):
+            df = pd.read_excel(file_text_path)
+        else:
+            df = pd.read_csv(file_text_path, delimiter='\t')
     except UnicodeDecodeError, e:
-        logger.error(e)
+        logger.exception(e)
         return render_template('message.html', message='Your input file "%s" must be in UTF-8 encoding'
                                                        % file_text.filename)
     except Exception, e:
-        logger.error(e)
+        logger.exception(e)
         return render_template('message.html', message='Error when reading file "%s": %s'
                                                        % (file_text.filename, e.message))
 
     # Check required fields
-    require_fields = ['content1', 'content2', 'content2']
+    require_fields = ['content1', 'content2', 'content3']
     missing_fields = []
     for field in require_fields:
         if field not in df:
@@ -131,7 +144,7 @@ def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file
         row['distance23'] = result[idx]['distance23']
         row['distance13'] = result[idx]['distance13']
 
-    df.to_csv(os.path.join(app.config['UPLOAD_FOLDER'], output_file), index=False, sep='\t', encoding='utf-8')
+    df.to_csv(os.path.join(app.config['UPLOAD_FOLDER'], output_file), index=False, sep='\t')
 
 
 def cross_check_similarity_wrapper(args):
