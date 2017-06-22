@@ -74,7 +74,7 @@ def cross_check_sim():
                                                        % file_text.filename)
     except Exception, e:
         logger.exception(e)
-        return render_template('message.html', message='ERROR: Fail reading file "%s": %s'
+        return render_template('message.html', message='ERROR: Failed to read file "%s": %s'
                                                        % (file_text.filename, e.message))
 
     # Check required fields
@@ -84,8 +84,8 @@ def cross_check_sim():
         if field not in df:
             missing_fields.append(field)
     if missing_fields:
-        return render_template('message.html', message='ERROR: File csv must contain "%s" field(s)'
-                                                       % ', '.join(missing_fields))
+        return render_template('message.html', message='ERROR: File "%s" must contain "%s" field(s)'
+                                                       % (file_text.filename, ', '.join(missing_fields)))
     output_file = '%s_result-for-job_%s.csv' % (file_text_name, job_id)
     process = Process(target=process_job, args=(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file))
     process.start()
