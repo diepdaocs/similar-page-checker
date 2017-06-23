@@ -60,14 +60,14 @@ def cross_check_sim():
 
     file_com = os.path.splitext(secure_filename(file_text.filename))
     file_text_name = file_com[0]
-    file_text_path = os.path.join(app.config['UPLOAD_FOLDER'], '%s_input-with-job_%s.%s' %
+    file_text_path = os.path.join(app.config['UPLOAD_FOLDER'], '%s_input-with-job_%s%s' %
                                   (file_text_name, job_id, file_com[1]))
     file_text.save(file_text_path)
     try:
         if is_excel_file(file_text.filename):
-            df = pd.read_excel(file_text_path)
+            df = pd.read_excel(file_text_path, encoding='utf-8')
         else:
-            df = pd.read_csv(file_text_path, delimiter='\t')
+            df = pd.read_csv(file_text_path, delimiter='\t', encoding='utf-8')
     except UnicodeDecodeError, e:
         logger.exception(e)
         return render_template('message.html', message='ERROR: Your input file "%s" must be in UTF-8 encoding'
@@ -115,7 +115,8 @@ def update_jobs():
     jobs = sorted(jobs, key=lambda j: j.get('start', 0), reverse=True)
     for jb in jobs:
         jb['start'] = datetime.fromtimestamp(float(jb['start'])).strftime('%Y-%m-%d %H:%M:%S')
-        jb['complete'] = round(float(jb.get('progress', 0)) / float(jb['size']) * 100, 0)
+        jb['complete'] = round(float(jb.get('progress', 0)) / float(jb['size']) * 100, 0) if float(jb['size']) else 0
+        jb['finish'] = int(jb['finish']) == 1
     return jsonify(jobs=jobs)
 
 
@@ -133,18 +134,24 @@ def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file
     redis.hset(job_id, 'size', len(df.index))
     redis.hset(job_id, 'start', time.time())
     redis.hset(job_id, 'file', output_file)
+    redis.hset(job_id, 'finish', 0)
     tasks = [(row['content1'], row['content2'], row['content3'], selected_dm, unit, min_ngram, max_ngram, job_id)
              for idx, row in df.iterrows()]
 
     pool = Pool(cpu_count() * 2)
     result = pool.map(cross_check_similarity_wrapper, tasks)
+    pool.close()
     pool.terminate()
     for idx, row in df.iterrows():
-        row['distance12'] = result[idx]['distance12']
-        row['distance23'] = result[idx]['distance23']
-        row['distance13'] = result[idx]['distance13']
+        df.loc[idx, 'distance12'] = result[idx]['distance12']
+        df.loc[idx, 'distance23'] = result[idx]['distance23']
+        df.loc[idx, 'distance13'] = result[idx]['distance13']
 
-    df.to_csv(os.path.join(app.config['UPLOAD_FOLDER'], output_file), index=False, sep='\t')
+    try:
+        df.to_csv(os.path.join(app.config['UPLOAD_FOLDER'], output_file), index=False, sep='\t', encoding='utf-8')
+        redis.hset(job_id, 'finish', 1)
+    except Exception as e:
+        logger.exception(e)
 
 
 def cross_check_similarity_wrapper(args):

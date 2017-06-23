@@ -21,6 +21,11 @@
         	job_html    += '		<div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="{0}" aria-valuemin="0" aria-valuemax="{1}" style="width:{2}%">'.format(job.progress, job.size, job.complete);
         	job_html    +=     		'{0}% complete ({1}/{2})</div>'.format(job.complete, job.progress, job.size);
     		job_html    += '	</div>';
+    	} else if (!job.finish) {
+    	    job_html    += '	<div class="progress">';
+        	job_html    += '		<div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="{0}" aria-valuemin="0" aria-valuemax="{1}" style="width:{2}%">'.format(job.progress, job.size, job.complete);
+        	job_html    +=     		'Tasks completed - writing result to file</div>';
+    		job_html    += '	</div>';
     	} else {
     		// Show download button
     		job_html    += '	<form role="form" class="form-inline" action="{0}" method="GET" enctype="multipart/form-data"> <i>{1}</i> <input type="submit" value="Download" class="btn btn-default">'.format(file_url + job.file, job.file);
