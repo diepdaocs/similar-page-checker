@@ -50,8 +50,8 @@ def cross_check_sim():
     # Get form parameters
     selected_dm = request.values.get('distance_metric') or 'cosine'
     unit = request.values.get('unit') or 'word'
-    min_ngram = request.values.get('min_ngram') or 1
-    max_ngram = request.values.get('max_ngram') or 1
+    min_ngram = int(request.values.get('min_ngram')) or 1
+    max_ngram = int(request.values.get('max_ngram')) or 1
 
     file_text = request.files.get('file_text')
     if not file_text or not allowed_file(file_text.filename):
