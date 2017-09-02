@@ -45,10 +45,12 @@ class PageCrawler(object):
                 headers = {'User-Agent': self.user_agent}
                 response = requests.get(url, verify=False, timeout=5, headers=headers)
                 # raise exception when something error
-                if response.status_code == requests.codes.ok:
+                if response.ok:
                     result[url]['content'] = response.content
                 else:
-                    result[url]['error'] = 'Page not found'
+                    result[url]['error'] = 'Crawling error'
+                 
+                result[url]['code'] = response.status_code
 
             except Exception as ex:
                 self.logger.error('crawl_page error: %s' % ex.message)
