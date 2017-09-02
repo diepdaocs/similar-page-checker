@@ -51,6 +51,7 @@ class PageCrawler(object):
                     result[url]['error'] = 'Crawling error'
                  
                 result[url]['code'] = response.status_code
+                result[url]['ok'] = response.ok
 
             except Exception as ex:
                 self.logger.error('crawl_page error: %s' % ex.message)
