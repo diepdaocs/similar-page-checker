@@ -48,7 +48,7 @@ class PageCrawler(object):
                 if response.ok:
                     result[url]['content'] = response.content
                 else:
-                    result[url]['error'] = 'Crawling error'
+                    result[url]['error'] = 'Crawling error: %s' % response.reason
                  
                 result[url]['code'] = response.status_code
                 result[url]['ok'] = response.ok
