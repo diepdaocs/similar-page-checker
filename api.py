@@ -333,7 +333,11 @@ class PageExtractorResource(Resource):
                                       '`selector` and `selector_type` (default is `css`)' %
                                   (', '.join(list_selector_type), list_selector_type[0]),
                      'selector': 'If extractor is `selective`, you must specify the `selector` element',
-                     'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0]
+                     'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0],
+                     'cache': 'Cache result for later use faster (integer), `0` is cache disabled, '
+                              '`others` is cache enabled. Default is non-cache',
+                     'expire_time': 'Expire time for cache (second), only effect when cache enabled. '
+                                    'Default is `604800` seconds (7 days)'
                      }
              )
     @api.response(200, 'Success', model='page_extractor_response')
@@ -366,7 +370,13 @@ class PageExtractorResource(Resource):
             s_extractor.selector = selector.strip()
 
         user_agent = request.values.get('user_agent', user_agents[0])
-        s_content_getter = ContentGetter(crawler=PageCrawler(user_agent=user_agent), extractor=s_extractor)
+        s_crawler = PageCrawler(user_agent=user_agent)
+        cache = int(request.values.get('cache', 0))
+        if cache != 0:
+            expire_time = int(request.values.get('expire_time', 604800))  # Seconds = 7 days
+            s_crawler.active_redis_cache(expire_time)
+
+        s_content_getter = ContentGetter(crawler=s_crawler, extractor=s_extractor)
 
         if not result['error']:
             pages = result['pages']

@@ -1,8 +1,10 @@
+import json
 from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool
 from datetime import datetime
 
 import requests
+from redis import StrictRedis
 
 from util.utils import get_logger, get_unicode
 
@@ -13,10 +15,39 @@ class PageCrawler(object):
                                   '(KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'):
         self.logger = get_logger(self.__class__.__name__)
         self.user_agent = user_agent
+        self.redis = None
+        self.expire_time = None
+
+    def active_redis_cache(self, expire_time):
+        self.logger.info('Cache is enabled')
+        self.expire_time = expire_time
+        if self.redis is None:
+            self.redis = StrictRedis(db=3)
 
     def process(self, urls):
-        urls = list(set(urls))
         result = {}
+        urls = list(set(urls))
+
+        if self.redis:
+            # Get crawled pages
+            for url in urls:
+                page = self.redis.get(url)
+                if not page:
+                    continue
+                self.logger.debug('Url was crawled: %s', url)
+                result[url] = json.loads(page)
+
+            self.logger.info("Num of crawled urls: %s" % len(result))
+            # filter crawled page
+            urls = [u for u in urls if u not in result]
+
+            self.logger.info("Remain haven't crawled urls: %s" % len(urls))
+
+            if not urls:
+                self.logger.info('All urls has been crawled')
+                return result
+
+        # Crawl new urls
         if len(urls) > 2:
             # use multi thread to crawl pages
             pool = Pool(cpu_count() * 2)
@@ -29,6 +60,13 @@ class PageCrawler(object):
         else:
             for url in urls:
                 result.update(self._crawl_page(url))
+
+        if self.redis:
+            # Cache result
+            for url in urls:
+                page = result[url]
+                page['crawled_date'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                self.redis.set(url, json.dumps(page), ex=self.expire_time)
 
         return result
 
