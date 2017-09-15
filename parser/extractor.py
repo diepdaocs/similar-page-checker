@@ -47,7 +47,7 @@ class PageExtractor(object):
                         for url, page in pages.items() if page.get('content')]
             else:
                 data = [(get_unicode(url), page.get('content', '')) for url, page in pages.items() if
-                        page.get('content')]
+                        page.get('ok') and page.get('content')]
             pool_results = pool.map(func, data)
             # get results
             for r in pool_results:
@@ -100,6 +100,7 @@ def get_common_info(raw_html):
     return [e for e in [title, description, keywords] if e]
 
 
+@timeout(5)
 def dragnet_extractor((url, raw_content)):
     logger.debug('Start dragnet_extractor: %s' % url)
     content = ''
@@ -129,6 +130,7 @@ def visible(element):
     return True
 
 
+@timeout(5)
 def all_text_extractor((url, raw_content)):
     logger.debug('Start all_text_extractor: %s' % url)
     result = ''
@@ -144,6 +146,7 @@ def all_text_extractor((url, raw_content)):
     return url, result
 
 
+@timeout(5)
 def selective_extractor((url, raw_content, selector, selector_type)):
     logger.debug('Start selective_extractor: %s' % url)
     result = ''
@@ -179,6 +182,7 @@ class DragnetPageExtractor(PageExtractor):
         return dragnet_extractor((url, raw_content))
 
 
+@timeout(5)
 def readability_extractor((url, raw_content)):
     logger.debug('Start readability_extractor: %s' % url)
     content = ''
@@ -229,6 +233,7 @@ def get_goose_doc(raw_content):
     return Goose().extract(raw_html=raw_content)
 
 
+@timeout(5)
 def goose_extractor((url, raw_content)):
     logger.debug('Start goose_extractor: %s' % url)
     result = ''
@@ -261,6 +266,7 @@ class GoosePageExtractor(PageExtractor):
         return goose_extractor((url, raw_content))
 
 
+@timeout(5)
 def goose_dragnet_extractor((url, raw_content)):
     logger.debug('Start goose_dragnet_extractor: %s' % url)
     content = ''
