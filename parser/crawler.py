@@ -35,7 +35,7 @@ class PageCrawler(object):
                 if not page:
                     continue
                 self.logger.debug('Url was crawled: %s', url)
-                result[url] = json.loads(page)
+                result[url] = json.loads(get_unicode(page))
 
             self.logger.info("Num of crawled urls: %s" % len(result))
             # filter crawled page
@@ -66,7 +66,7 @@ class PageCrawler(object):
             for url in urls:
                 page = result[url]
                 page['crawled_date'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                self.redis.set(url, json.dumps(page), ex=self.expire_time)
+                self.redis.set(url, json.dumps(page, ensure_ascii=False, encoding='utf-8'), ex=self.expire_time)
 
         return result
 
