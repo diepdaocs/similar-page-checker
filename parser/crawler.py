@@ -94,6 +94,8 @@ class PageCrawler(object):
             except Exception as ex:
                 self.logger.error('crawl_page error: %s' % ex.message)
                 result[url]['error'] = str(ex.message)  # 'Page not found'
+                result[url]['code'] = 408
+                result[url]['ok'] = False
         else:
             result[url]['error'] = 'url is empty'
 
