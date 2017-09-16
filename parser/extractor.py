@@ -1,7 +1,9 @@
 import re
 from multiprocessing import Pool, cpu_count
+from urlparse import urlparse
 
 from bs4 import BeautifulSoup
+from bs4.element import Comment
 from dragnet import content_comments_extractor
 from readability.readability import Document
 from goose import Goose
@@ -87,7 +89,7 @@ def get_soup_meta(soup, name):
     return u''
 
 
-def get_common_info(raw_html):
+def get_common_info(url, raw_html):
     try:
         soup = BeautifulSoup(raw_html, 'lxml')
         title = soup.title.string if soup.title else u''
@@ -95,9 +97,27 @@ def get_common_info(raw_html):
         description = get_soup_meta(soup, 'description')
         keywords = get_soup_meta(soup, 'keywords')
     except Exception as ex:
+        logger.exception('Exception when get common info')
         return []
 
-    return [e for e in [title, description, keywords] if e]
+    return [e for e in [title, description, keywords, get_text_from_url(url)] if e]
+
+
+def get_text_from_url(url):
+    try:
+        parse_result = urlparse(url)
+        if not parse_result:
+            return ''
+        path = ' '.join([t.strip() for t in parse_result.path.split('/') if t and t.strip() and '.' not in t]) \
+            if parse_result.path else ''
+        path = re.sub(r'[^A-Za-z0-9]', ' ', path)
+        netloc_parts = parse_result.netloc.replace('www.', '').split('.')
+        root_name = netloc_parts[0] if len(netloc_parts) > 0 else ''
+        return get_unicode(root_name + ' ' + path)
+    except Exception as ex:
+        logger.exception('Error when get text from url')
+
+    return ''
 
 
 @timeout(5)
@@ -112,11 +132,11 @@ def dragnet_extractor((url, raw_content)):
 
     result = ''
     try:
-        elements = get_common_info(raw_content)
+        elements = get_common_info(url, raw_content)
         elements.append(get_unicode(content))
         result = ', '.join(get_unicode(c) for c in elements if c)
     except Exception as ex:
-        logger.error('Unicode issue: %s' % ex.message)
+        logger.exception('Unicode issue: %s' % ex.message)
 
     logger.debug('End dragnet_extractor: %s' % url)
     return url, result
@@ -125,7 +145,9 @@ def dragnet_extractor((url, raw_content)):
 def visible(element):
     if element.parent.name in ['style', 'script', '[document]', 'head', 'title']:
         return False
-    elif re.match('<!--.*-->', get_unicode(element)):
+    if isinstance(element, Comment):
+        return False
+    elif re.match(r'<!--.*-->', get_unicode(element)):
         return False
     return True
 
@@ -137,8 +159,13 @@ def all_text_extractor((url, raw_content)):
     try:
         soup = BeautifulSoup(raw_content, 'html.parser')
         texts = soup.findAll(text=True)
+        # Get all visible text
         visible_texts = filter(visible, texts)
-        result = ', '.join(get_unicode(t.strip()) for t in visible_texts if t and t.strip())
+        # Get common info
+        common_texts = get_common_info(url, raw_content)
+
+        all_texts = common_texts + visible_texts
+        result = ', '.join(get_unicode(t.strip()) for t in all_texts if t and t.strip())
     except Exception as ex:
         logger.error('All text extractor: %s' % ex.message)
 
@@ -193,7 +220,7 @@ def readability_extractor((url, raw_content)):
         logger.error('readability extract_page_content error: %s' % ex)
         logger.error('url: %s' % url)
 
-    elements = get_common_info(raw_content)
+    elements = get_common_info(url, raw_content)
     elements.append(get_unicode(content))
     result = ', '.join(c for c in elements if c)
     logger.debug('End readability_extractor: %s' % url)
@@ -222,7 +249,7 @@ def get_goose_content(url, doc, name):
             result = doc.cleaned_text
 
     except Exception as ex:
-        logger.error("goose extract '%s' error %s" % (name, ex))
+        logger.exception("goose extract '%s' error %s" % (name, ex.message))
         logger.error('url: %s' % url)
 
     return result
@@ -242,7 +269,7 @@ def goose_extractor((url, raw_content)):
             try:
                 doc = get_goose_doc(raw_content)
                 cleaned_text = get_goose_content(url, doc, 'cleaned_text')
-                elements = get_common_info(raw_content)
+                elements = get_common_info(url, raw_content)
                 elements.append(get_unicode(cleaned_text))
                 result = ', '.join(c for c in elements if c)
             except TimeoutError as ex:
@@ -250,7 +277,7 @@ def goose_extractor((url, raw_content)):
                 logger.error('Url: %s' % url)
 
     except Exception as ex:
-        logger.error('goose extract_page_content timout error: %s' % ex.message)
+        logger.exception('goose extract_page_content timeout error: %s' % ex.message)
         logger.error('url: %s' % url)
 
     logger.debug('End goose_extractor: %s' % url)
@@ -273,7 +300,7 @@ def goose_dragnet_extractor((url, raw_content)):
     try:
         content = content_comments_extractor.analyze(raw_content)
     except Exception as ex:
-        logger.error('dragnet extract page content and comment error: %s' % ex)
+        logger.exception('dragnet extract page content and comment error: %s' % ex.message)
 
     meta_text = ''
     try:
@@ -286,13 +313,13 @@ def goose_dragnet_extractor((url, raw_content)):
                 if not content:
                     content = get_goose_content(url, doc, 'cleaned_text')
                 meta_text = ', '.join(c for c in [get_unicode(title), get_unicode(meta_description),
-                                                  get_unicode(meta_keywords)] if c)
+                                                  get_unicode(meta_keywords), get_text_from_url(url)] if c)
             except Exception as ex:
-                logger.error('get_goose_doc error: %s' % ex.message)
+                logger.exception('get_goose_doc error: %s' % ex.message)
                 logger.error('Url: %s' % url)
 
     except Exception as ex:
-        logger.error('goose extract_page_content error: %s' % ex)
+        logger.exception('goose extract_page_content error: %s' % ex.message)
         logger.error('url: %s' % url)
 
     result = ', '.join(c for c in [get_unicode(content), meta_text] if c)

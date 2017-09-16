@@ -1,6 +1,6 @@
 import unittest
 from parser.crawler import PageCrawler
-from parser.extractor import DragnetPageExtractor
+from parser.extractor import DragnetPageExtractor, AllTextPageExtractor, get_text_from_url
 from parser.content_getter import ContentGetter
 from similarity_checker import CosineSimilarity
 from util.utils import logger_level, INFO, DEBUG
@@ -8,6 +8,10 @@ from elasticsearch import Elasticsearch
 from pprint import pprint
 from multiprocessing.dummy import Pool
 import requests
+
+import logging
+
+logging.basicConfig()
 
 
 class MyTestCase(unittest.TestCase):
@@ -18,8 +22,6 @@ class MyTestCase(unittest.TestCase):
         self.sub_urls = [
             "http://flask.pocoo.org/docs/0.10/deploying/wsgi-standalone/"
         ]
-
-        logger_level = DEBUG
 
         self.urls = self.sub_urls + [self.main_url]
         self.crawler = PageCrawler()
@@ -32,9 +34,21 @@ class MyTestCase(unittest.TestCase):
         pprint(result)
 
     def test_extractor(self):
-        result = self.crawler.process(self.urls)
-        for r in result.values():
-            pprint(self.extractor.process(r['content']))
+        pprint(self.extractor.process(self.crawler.process(self.urls)))
+
+    def test_all_text_extractor(self):
+        self.extractor = AllTextPageExtractor()
+        pprint(self.extractor.process(self.crawler.process([
+            'https://www.uncommongoods.com/gifts/personalized/personalized-gifts'
+        ])))
+
+    def test_get_text_from_url(self):
+        urls = ['https://www.uncommongoods.com/gifts/personalized/personalized-gifts',
+                'https://stackoverflow.com/questions/1521592/get-root-domain-of-link',
+                'https://docs.python.org/2/library/urlparse.html']
+
+        for url in urls:
+            print get_text_from_url(url)
 
     def test_content_getter(self):
         result = self.content_getter.process(self.urls)
