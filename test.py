@@ -42,6 +42,12 @@ class MyTestCase(unittest.TestCase):
             'https://www.uncommongoods.com/gifts/personalized/personalized-gifts'
         ])))
 
+    def test_all_text_extractor2(self):
+        self.extractor = AllTextPageExtractor()
+        pprint(self.extractor.process(self.crawler.process([
+            'https://vnexpress.net/tin-tuc/thoi-su/8-nguoi-chet-hon-tram-nghin-ngoi-nha-bi-toc-mai-do-bao-doksuri-3642317.html'
+        ])))
+
     def test_get_text_from_url(self):
         urls = ['https://www.uncommongoods.com/gifts/personalized/personalized-gifts',
                 'https://stackoverflow.com/questions/1521592/get-root-domain-of-link',

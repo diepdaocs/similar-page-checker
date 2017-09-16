@@ -77,6 +77,7 @@ class PageExtractor(object):
         pass
 
 
+@timeout(5)
 def get_soup_meta(soup, name):
     metas = soup.findAll('meta')
     for meta in metas:
@@ -89,15 +90,23 @@ def get_soup_meta(soup, name):
     return u''
 
 
+@timeout(5)
+def build_sup(raw_content):
+    return BeautifulSoup(raw_content, 'html.parser')
+
+
 def get_common_info(url, raw_html):
+    title = ''
+    description = ''
+    keywords = ''
     try:
-        soup = BeautifulSoup(raw_html, 'lxml')
+        soup = build_sup(raw_html)
         title = soup.title.string if soup.title else u''
         title = get_unicode(title) if title else u''
         description = get_soup_meta(soup, 'description')
         keywords = get_soup_meta(soup, 'keywords')
     except Exception as ex:
-        logger.exception('Exception when get common info')
+        logger.exception('Error when get common info')
         return []
 
     return [e for e in [title, description, keywords, get_text_from_url(url)] if e]
@@ -157,7 +166,7 @@ def all_text_extractor((url, raw_content)):
     logger.debug('Start all_text_extractor: %s' % url)
     result = ''
     try:
-        soup = BeautifulSoup(raw_content, 'html.parser')
+        soup = build_sup(raw_content)
         texts = soup.findAll(text=True)
         # Get all visible text
         visible_texts = filter(visible, texts)
