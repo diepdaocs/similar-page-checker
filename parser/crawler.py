@@ -6,7 +6,7 @@ from datetime import datetime
 import requests
 from redis import StrictRedis
 
-from timeout_decorator import timeout
+from timeout_decorator import timeout, TimeoutError
 
 from util.utils import get_logger, get_unicode
 
@@ -99,7 +99,11 @@ class PageCrawler(object):
 
             except Exception as ex:
                 self.logger.error('crawl_page error: %s' % ex.message)
-                result[url]['error'] = str(ex.message)  # 'Page not found'
+                if isinstance(ex, TimeoutError):
+                    result[url]['error'] = "Web page read timeout"
+                else:
+                    result[url]['error'] = str(ex.message)
+
                 result[url]['code'] = 408
                 result[url]['ok'] = False
         else:
