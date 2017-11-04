@@ -9,7 +9,7 @@ from readability.readability import Document
 from goose import Goose
 from abc import ABCMeta, abstractmethod
 
-from util.timeout import timeout, TimeoutError
+from timeout_decorator import timeout
 from util.utils import get_logger, get_unicode
 
 from lxml import etree
@@ -77,7 +77,6 @@ class PageExtractor(object):
         pass
 
 
-@timeout(5)
 def get_soup_meta(soup, name):
     metas = soup.findAll('meta')
     for meta in metas:
@@ -90,15 +89,11 @@ def get_soup_meta(soup, name):
     return u''
 
 
-@timeout(5)
 def build_sup(raw_content):
     return BeautifulSoup(raw_content, 'html.parser')
 
 
 def get_common_info(url, raw_html):
-    title = ''
-    description = ''
-    keywords = ''
     try:
         soup = build_sup(raw_html)
         title = soup.title.string if soup.title else u''
@@ -129,23 +124,23 @@ def get_text_from_url(url):
     return ''
 
 
-@timeout(5)
+@timeout(5, use_signals=False)
 def dragnet_extractor((url, raw_content)):
     logger.debug('Start dragnet_extractor: %s' % url)
-    content = ''
+    elements = []
     try:
-        content = content_comments_extractor.analyze(raw_content)
+        elements = get_common_info(url, raw_content)
     except Exception as ex:
-        logger.error('dragnet extract page content and comment error: %s' % ex)
-        logger.error('url: %s' % url)
+        logger.exception('Unicode issue: %s' % ex.message)
 
     result = ''
     try:
-        elements = get_common_info(url, raw_content)
+        content = content_comments_extractor.analyze(raw_content)
         elements.append(get_unicode(content))
         result = ', '.join(get_unicode(c) for c in elements if c)
     except Exception as ex:
-        logger.exception('Unicode issue: %s' % ex.message)
+        logger.exception('dragnet extract page content and comment error: %s' % ex.message)
+        logger.error('url: %s' % url)
 
     logger.debug('End dragnet_extractor: %s' % url)
     return url, result
@@ -161,7 +156,7 @@ def visible(element):
     return True
 
 
-@timeout(5)
+@timeout(5, use_signals=False)
 def all_text_extractor((url, raw_content)):
     logger.debug('Start all_text_extractor: %s' % url)
     result = ''
@@ -176,13 +171,13 @@ def all_text_extractor((url, raw_content)):
         all_texts = common_texts + visible_texts
         result = ', '.join(get_unicode(t.strip()) for t in all_texts if t and t.strip())
     except Exception as ex:
-        logger.error('All text extractor: %s' % ex.message)
+        logger.exception('All text extractor: %s' % ex.message)
 
     logger.debug('End all_text_extractor: %s' % url)
     return url, result
 
 
-@timeout(5)
+@timeout(5, use_signals=False)
 def selective_extractor((url, raw_content, selector, selector_type)):
     logger.debug('Start selective_extractor: %s' % url)
     result = ''
@@ -202,7 +197,7 @@ def selective_extractor((url, raw_content, selector, selector_type)):
             result = ' '.join(get_unicode(x.text) for x in elem.iter() if x.text)
 
     except Exception as ex:
-        logger.error('selector extractor error: %s' % ex)
+        logger.exception('selector extractor error: %s' % ex.message)
         logger.error('url: %s' % url)
 
     logger.debug('End selective_extractor: %s' % url)
@@ -218,7 +213,7 @@ class DragnetPageExtractor(PageExtractor):
         return dragnet_extractor((url, raw_content))
 
 
-@timeout(5)
+@timeout(5, use_signals=False)
 def readability_extractor((url, raw_content)):
     logger.debug('Start readability_extractor: %s' % url)
     content = ''
@@ -226,7 +221,7 @@ def readability_extractor((url, raw_content)):
         doc = Document(raw_content)
         content = doc.summary()
     except Exception as ex:
-        logger.error('readability extract_page_content error: %s' % ex)
+        logger.exception('readability extract_page_content error: %s' % ex.message)
         logger.error('url: %s' % url)
 
     elements = get_common_info(url, raw_content)
@@ -264,12 +259,11 @@ def get_goose_content(url, doc, name):
     return result
 
 
-@timeout(seconds=5)
 def get_goose_doc(raw_content):
     return Goose().extract(raw_html=raw_content)
 
 
-@timeout(5)
+@timeout(5, use_signals=False)
 def goose_extractor((url, raw_content)):
     logger.debug('Start goose_extractor: %s' % url)
     result = ''
@@ -281,8 +275,8 @@ def goose_extractor((url, raw_content)):
                 elements = get_common_info(url, raw_content)
                 elements.append(get_unicode(cleaned_text))
                 result = ', '.join(c for c in elements if c)
-            except TimeoutError as ex:
-                logger.error('get_goose_doc error: %s' % ex.message)
+            except Exception as ex:
+                logger.exception('get_goose_doc error: %s' % ex.message)
                 logger.error('Url: %s' % url)
 
     except Exception as ex:
@@ -302,7 +296,7 @@ class GoosePageExtractor(PageExtractor):
         return goose_extractor((url, raw_content))
 
 
-@timeout(5)
+@timeout(5, use_signals=False)
 def goose_dragnet_extractor((url, raw_content)):
     logger.debug('Start goose_dragnet_extractor: %s' % url)
     content = ''

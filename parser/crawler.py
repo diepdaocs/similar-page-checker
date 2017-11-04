@@ -6,6 +6,8 @@ from datetime import datetime
 import requests
 from redis import StrictRedis
 
+from timeout_decorator import timeout
+
 from util.utils import get_logger, get_unicode
 
 
@@ -70,6 +72,10 @@ class PageCrawler(object):
 
         return result
 
+    @timeout(5, use_signals=False)
+    def _get_page(self, url, headers):
+        return requests.get(url, verify=False, timeout=5, headers=headers)
+
     def _crawl_page(self, url):
         self.logger.debug('Start crawl %s...' % url)
         result = {
@@ -81,7 +87,7 @@ class PageCrawler(object):
         if url:
             try:
                 headers = {'User-Agent': self.user_agent}
-                response = requests.get(url, verify=False, timeout=5, headers=headers)
+                response = self._get_page(url, headers)
                 # raise exception when something error
                 if response.ok:
                     result[url]['content'] = response.content
