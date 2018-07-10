@@ -1,7 +1,8 @@
 import os
 import time
 from datetime import datetime
-from multiprocessing import Pool, cpu_count, Process
+from multiprocessing import Pool, cpu_count
+from threading import Thread
 from uuid import uuid4
 
 import pandas as pd
@@ -88,8 +89,9 @@ def cross_check_sim():
         return render_template('message.html', message='ERROR: File "%s" must contain "%s" field(s)'
                                                        % (file_text.filename, ', '.join(missing_fields)))
     output_file = '%s_result-for-job_%s.csv' % (file_text_name, job_id)
-    process = Process(target=process_job, args=(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file))
-    process.start()
+    thread = Thread(target=process_job, args=(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file))
+    thread.setDaemon(True)
+    thread.start()
 
     return redirect(url_for('job_list'))
 
@@ -139,7 +141,7 @@ def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file
     tasks = [(row['content1'], row['content2'], row['content3'], selected_dm, unit, min_ngram, max_ngram, job_id)
              for idx, row in df.iterrows()]
 
-    pool = Pool(cpu_count() * 2)
+    pool = Pool(cpu_count())
     result = pool.map(cross_check_similarity_wrapper, tasks)
     pool.close()
     pool.terminate()
