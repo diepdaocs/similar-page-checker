@@ -26,7 +26,8 @@ app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # Accept max 1GB file
 
 logger = get_logger(__name__)
 
-redis = StrictRedis(db=1, host=os.environ.get('REDIS_HOST', 'localhost'))
+redis = StrictRedis(
+    db=1, host=os.environ.get('REDIS_HOST', 'localhost'), port=os.environ.get('REDIS_PORT', 6379))
 
 
 # For a given file, return whether it's an allowed type or not
