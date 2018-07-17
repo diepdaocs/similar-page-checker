@@ -1,16 +1,40 @@
-app:
-  image: diepdao12892/python-machine-learning-lib:latest
-  environment:
-    - PYTHONPATH=/code
-  command: gunicorn -k tornado -w 2 -b 0.0.0.0:1999 main:app --max-requests 10000
-  volumes:
-    - .:/code
-  ports:
-    - 1999:1999
-  links:
-    - redis
+version: "3"
+services:
+  web:
+    image: diepdao12892/webpages-duplicated-checking:1.0
+    deploy:
+      replicas: 4
+      restart_policy:
+        condition: on-failure
+    environment:
+      - PYTHONPATH=/code
+      - REDIS_HOST=redis
+    command: gunicorn -k tornado -w 2 -b 0.0.0.0:1999 main:app --max-requests 10000
+    volumes:
+      - .:/code
+    ports:
+      - 1999:1999
+    networks:
+      - webnet
 
-redis:
-  image: redis
-  ports:
-    - 6379:6379
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+    networks:
+      - webnet
+
+  visualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    networks:
+      - webnet
+
+networks:
+  webnet:
