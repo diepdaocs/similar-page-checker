@@ -32,6 +32,12 @@ Install docker: for more options, please refer to [official page](https://docs.d
 ```shell
 curl -fsSL get.docker.com -o get-docker.sh && sudo sh get-docker.sh
 ```
+
+Git clone and cd to project:
+```shell
+git clone https://bitbucket.org/diepdt/webpages-duplicated-checking.git
+cd webpages-duplicated-checking
+```
 ## Option 1: Using [docker swarm cluster](https://docs.docker.com/get-started/) (recommended)
 - Init docker swarm cluster: this machine will be the `master node`
 ```shell
