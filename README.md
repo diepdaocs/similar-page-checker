@@ -1,4 +1,4 @@
-# Web pages similarity checking
+Web pages similarity checking
 
 [TOC]
 
