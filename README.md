@@ -47,7 +47,8 @@ docker swarm join --token [TOKEN] [MASTER_HOST:PORT]
 - Update [configs](docker-compose.yml):
 ```shell
 vi docker-compose.yml
-# Update `CRAWLER_URL`, `CRAWLER_ACCESS_KEY`, `services.web.deploy.replicas`: scaling web/api to a numnber of instances
+# Update `CRAWLER_URL`, `CRAWLER_ACCESS_KEY`: Please DO NOT surround value by single quote or double quote, put value only
+# Update `services.web.deploy.replicas`: scaling web/api to a numnber of instances
 # Update web/api port, default is `8888`
 ```
 - Deploy services: Web + Redis + Monitor
@@ -78,8 +79,8 @@ docker rm sim-check
 docker run -d \
            --name sim-check \
            -p 8888:8888 \
-           -e CRAWLER_URL=''
-           -e CRAWLER_ACCESS_KEY=''
+           -e CRAWLER_URL= \
+           -e CRAWLER_ACCESS_KEY= \
            -e REDIS_HOST=192.168.1.118 \
            -e REDIS_PORT=6379 \
            -v `pwd`:/code \
