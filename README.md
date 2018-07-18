@@ -1,14 +1,14 @@
 # Web pages similarity checking
 Mainly, we have 4 modules: Page Crawler, Page Extractor, Similarity Checker and Web Service
 
-* Page Crawler: Crawl html content of web page. Currently, we use python [`requests`](https://github.com/kennethreitz/requests) library.
+* Page Crawler: Crawl html content of web page. Currently, we use a remote crawler cluster provided by SeoClarity.
 * Page Extractor: Extract content from raw html (remove html tag, unnecessary content,...). Currently, we use python [`dragnet`](https://github.com/seomoz/dragnet)  library.
 * Similarity Checker: Calculate similarity between web pages content. The content is firstly `tokenizer` into tokens, after that generate [`ngram`](https://en.wikipedia.org/wiki/N-gram) (or shingles) tokens set, and finally apply [`distance metrics`](http://dataaspirant.com/2015/04/11/five-most-popular-similarity-measures-implementation-in-python/) to calculate similarity. Currently, we support three distance metrics are `jaccard`, `cosine` and `fuzzy`.
 * Web Service: Build RESTful api services. Currently, we use python [flask](http://flask.pocoo.org/) (a micro web framework) and [Swagger UI](http://swagger.io/) for presenting API documents.
 
 # Technologies
 * Python 2.7
-* Flash
+* Flash Web and Restful API
 
 # Development
 Install python libraries for Ubuntu
