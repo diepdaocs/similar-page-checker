@@ -35,7 +35,7 @@ Install docker: for more options, please refer to [official page](https://docs.d
 ```shell
 curl -fsSL get.docker.com -o get-docker.sh && sudo sh get-docker.sh
 ```
-## Using [docker swarm cluster](https://docs.docker.com/get-started/) (recommended)
+## Option 1: Using [docker swarm cluster](https://docs.docker.com/get-started/) (recommended)
 - Init docker swarm cluster: this machine will be the `master node`
 ```shell
 docker swarm init
@@ -64,7 +64,7 @@ docker stack rm sim-check # removing sim-check
 docker node ls # list all swarn cluster
 docker stack deploy -c docker-compose.yml sim-check # update service
 ```
-## Using standalone docker container
+## Option 2: Using standalone docker container
 - Start redis
 ```shell
 docker rm redis
