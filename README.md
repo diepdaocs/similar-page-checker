@@ -25,6 +25,7 @@ Config IDE (e.g Pycharm) using created python `venv`: Go to `Preference` -> `Pro
 
 # Deployment
 There 2 options:
+
 * Docker swarm cluster (recommended): support scaling application, load balancing
 * Standalone docker container
 
