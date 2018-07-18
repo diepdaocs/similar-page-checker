@@ -1,15 +1,15 @@
+import logging
 import unittest
+from multiprocessing.dummy import Pool
+from pprint import pprint
+
+import requests
+from elasticsearch import Elasticsearch
+
+from parser.content_getter import ContentGetter
 from parser.crawler import PageCrawler
 from parser.extractor import DragnetPageExtractor, AllTextPageExtractor, get_text_from_url
-from parser.content_getter import ContentGetter
 from similarity_checker import CosineSimilarity
-from util.utils import logger_level, INFO, DEBUG
-from elasticsearch import Elasticsearch
-from pprint import pprint
-from multiprocessing.dummy import Pool
-import requests
-
-import logging
 
 logging.basicConfig()
 
@@ -102,6 +102,7 @@ class MyTestCase(unittest.TestCase):
         from similarity_checker import tokenize_and_normalize_content
         text = 'what are you doing'
         pprint(tokenize_and_normalize_content(text, unit='character', min_ngram=1, max_ngram=3))
+
 
 if __name__ == '__main__':
     unittest.main()

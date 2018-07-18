@@ -1,4 +1,5 @@
 import json
+import os
 from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool
 from datetime import datetime
@@ -24,7 +25,8 @@ class PageCrawler(object):
         self.logger.info('Cache is enabled')
         self.expire_time = expire_time
         if self.redis is None:
-            self.redis = StrictRedis(db=3)
+            self.redis = StrictRedis(
+                db=3, host=os.environ.get('REDIS_HOST', 'localhost'), port=os.environ.get('REDIS_PORT', 6379))
 
     def process(self, urls):
         result = {}

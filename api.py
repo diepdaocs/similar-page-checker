@@ -1,12 +1,13 @@
-from flask import request, Flask, jsonify
-from parser.crawler import PageCrawler
+from flask import request, jsonify
+from flask_restplus import Api, Resource, fields
+
+from app import app
 from parser.content_getter import ContentGetter
+from parser.crawler_cluster import PageCrawlerCluster as PageCrawler
 from parser.extractor import DragnetPageExtractor, ReadabilityPageExtractor, GoosePageExtractor, \
     GooseDragnetPageExtractor, SelectivePageExtractor, AllTextPageExtractor
 from similarity_checker import SimilarityChecker, jaccard_similarity, cosine_similarity, \
     fuzzy_similarity, simhash_similarity, tokenize_and_normalize_content
-from flask_restplus import Api, Resource, fields
-from app import app
 
 api = Api(app, doc='/doc/', version='1.0', title='Web pages similarity')
 
@@ -34,6 +35,7 @@ def get_extractor(name):
     else:
         return None
 
+
 list_selector_type = ['css', 'xpath']
 
 sim_check_params = api.model('sim_check_params', {
@@ -48,39 +50,53 @@ sim_check_params = api.model('sim_check_params', {
 
 sim_check_response = api.model('sim_check_response', {
     'error': fields.String(default='False (boolean) if request successfully, else return error message (string)'),
-    'similarity': fields.String(default="""[[url1, matching_percentage1], [url2, matching_percentage2], [url3, matching_percentage3], [url4, "Page not found]"], [url4, "Page not found]"],...]""")
+    'similarity': fields.String(
+        default="""[[url1, matching_percentage1], [url2, matching_percentage2], [url3, matching_percentage3], [url4, "Page not found]"], [url4, "Page not found]"],...]""")
 })
 
 ns1 = api.namespace('similarity', 'Similarity Checker')
 
 distance_metrics = ['jaccard', 'cosine', 'fuzzy', 'simhash']
 
-user_agents = ['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) '
-               'Chrome/39.0.2171.95 Safari/537.36']
+user_agents = ['ClarityBot', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) '
+                             'Chrome/39.0.2171.95 Safari/537.36']
+
+page_load_timeout_default = 15
+wait_after_last_request_default = 0.5
+crawler_cluster_options = {'page_load_timeout': "Maximum number of milliseconds to wait while downloading the page, "
+                                                "waiting for all pending requests/ajax calls to complete before timing "
+                                                "out and continuing on. Time out condition does not cause an error, it "
+                                                "just returns the HTML on the page at that moment. Default is %d" %
+                                                page_load_timeout_default,
+                           'wait_after_last_request': "Number of milliseconds to wait after the number of "
+                                                      "requests/ajax calls in flight reaches zero. HTML is pulled "
+                                                      "off of the page at this point. Default is %.1f" %
+                                                      wait_after_last_request_default}
 
 
 @ns1.route('/check')
 class SimilarityCheckerResource(Resource):
     """Checking similarity between main web page and other web pages"""
-    @api.doc(params={'distance_metric': 'Distance metric to be used (currently support %s), default is `cosine`'
-                                        % ', '.join(distance_metrics),
-                     'main_url': 'Main url for checking similarity',
-                     'sub_urls': 'Sub urls to be checked (urls are separated by comma)',
-                     'unit': 'Unit of ngram, support value are word or character, default is `word`',
-                     'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
-                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)',
-                     'extractor': 'The name of extractor to be used, currently support `%s`, default `%s`, '
-                                  'if the extractor name is `selective`, you must specify `main_page_selector`, '
-                                  '`sub_page_selector` and `selector_type` (default is `css`)' %
-                                  (', '.join(list_extractor), list_extractor[0]),
-                     'selector_type': 'The name of selector type to be used, currently support `%s`, default is `%s`' %
-                                  (', '.join(list_selector_type), list_selector_type[0]),
-                     'main_page_selector': 'Main page selector, if extractor is `selective`, '
-                                           'you must specify the `main_page_selector` element',
-                     'sub_page_selector': 'Sub page selector, if extractor is `selective`, '
-                                          'you must specify the `sub_page_selector` element',
-                     'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0]
-                     }
+
+    @api.doc(params=dict({'distance_metric': 'Distance metric to be used (currently support %s), default is `cosine`'
+                                             % ', '.join(distance_metrics),
+                          'main_url': 'Main url for checking similarity',
+                          'sub_urls': 'Sub urls to be checked (urls are separated by comma)',
+                          'unit': 'Unit of ngram, support value are word or character, default is `word`',
+                          'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
+                          'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)',
+                          'extractor': 'The name of extractor to be used, currently support `%s`, default `%s`, '
+                                       'if the extractor name is `selective`, you must specify `main_page_selector`, '
+                                       '`sub_page_selector` and `selector_type` (default is `css`)' %
+                                       (', '.join(list_extractor), list_extractor[0]),
+                          'selector_type': 'The name of selector type to be used, currently support `%s`, '
+                                           'default is `%s`' % (', '.join(list_selector_type), list_selector_type[0]),
+                          'main_page_selector': 'Main page selector, if extractor is `selective`, '
+                                                'you must specify the `main_page_selector` element',
+                          'sub_page_selector': 'Sub page selector, if extractor is `selective`, '
+                                               'you must specify the `sub_page_selector` element',
+                          'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0]
+                          }, **crawler_cluster_options)
              )
     @api.response(200, 'Success', model=sim_check_response)
     def post(self):
@@ -153,7 +169,13 @@ class SimilarityCheckerResource(Resource):
                 return result
 
         user_agent = request.values.get('user_agent', user_agents[0])
-        s_content_getter = ContentGetter(crawler=PageCrawler(user_agent=user_agent.strip()), extractor=s_extractor)
+        page_load_timeout = request.values.get('page_load_timeout', page_load_timeout_default)
+        wait_after_last_request = request.values.get('wait_after_last_request', wait_after_last_request_default)
+        s_content_getter = ContentGetter(crawler=PageCrawler(user_agent=user_agent.strip(),
+                                                             page_load_timeout=page_load_timeout,
+                                                             wait_after_last_request=wait_after_last_request
+                                                             ),
+                                         extractor=s_extractor)
 
         # check similarity
         if not result['error']:
@@ -173,28 +195,29 @@ class SimilarityCheckerResource(Resource):
 @ns1.route('/cross-check')
 class SimilarityCrossCheckerResource(Resource):
     """Checking similarity between main web page and other web pages"""
-    @api.doc(params={'distance_metric': 'Distance metric to be used (currently support %s), default is `cosine`'
-                                        % ', '.join(distance_metrics),
-                     'url_1': 'Url 1',
-                     'url_2': 'Url 2',
-                     'url_3': 'Url 3',
-                     'unit': 'Unit of ngram, support value are word or character, default is `word`',
-                     'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
-                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)',
-                     'extractor': 'The name of extractor to be used, currently support `%s`, default `%s`, '
-                                  'if the extractor name is `selective`, you must specify `main_page_selector`, '
-                                  '`sub_page_selector` and `selector_type` (default is `css`)' %
-                                  (', '.join(list_extractor), list_extractor[0]),
-                     'selector_type': 'The name of selector type to be used, currently support `%s`, default is `%s`' %
-                                  (', '.join(list_selector_type), list_selector_type[0]),
-                     'url_1_selector': 'Url 1 selector, if extractor is `selective`, '
-                                       'you must specify the `url_1_selector` element',
-                     'url_2_selector': 'Url 2 selector, if extractor is `selective`, '
-                                       'you must specify the `url_2_selector` element',
-                     'url_3_selector': 'Url 3 selector, if extractor is `selective`, '
-                                       'you must specify the `url_3_selector` element',
-                     'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0]
-                     }
+
+    @api.doc(params=dict({'distance_metric': 'Distance metric to be used (currently support %s), default is `cosine`'
+                                             % ', '.join(distance_metrics),
+                          'url_1': 'Url 1',
+                          'url_2': 'Url 2',
+                          'url_3': 'Url 3',
+                          'unit': 'Unit of ngram, support value are word or character, default is `word`',
+                          'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
+                          'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)',
+                          'extractor': 'The name of extractor to be used, currently support `%s`, default `%s`, '
+                                       'if the extractor name is `selective`, you must specify `main_page_selector`, '
+                                       '`sub_page_selector` and `selector_type` (default is `css`)' %
+                                       (', '.join(list_extractor), list_extractor[0]),
+                          'selector_type': 'The name of selector type to be used, currently support `%s`, '
+                                           'default is `%s`' % (', '.join(list_selector_type), list_selector_type[0]),
+                          'url_1_selector': 'Url 1 selector, if extractor is `selective`, '
+                                            'you must specify the `url_1_selector` element',
+                          'url_2_selector': 'Url 2 selector, if extractor is `selective`, '
+                                            'you must specify the `url_2_selector` element',
+                          'url_3_selector': 'Url 3 selector, if extractor is `selective`, '
+                                            'you must specify the `url_3_selector` element',
+                          'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0]
+                          }, **crawler_cluster_options)
              )
     @api.response(200, 'Success')
     def post(self):
@@ -271,7 +294,13 @@ class SimilarityCrossCheckerResource(Resource):
                 return result
 
         user_agent = request.values.get('user_agent', user_agents[0])
-        s_content_getter = ContentGetter(crawler=PageCrawler(user_agent=user_agent.strip()), extractor=s_extractor)
+        page_load_timeout = request.values.get('page_load_timeout', page_load_timeout_default)
+        wait_after_last_request = request.values.get('wait_after_last_request', wait_after_last_request_default)
+        s_content_getter = ContentGetter(crawler=PageCrawler(user_agent=user_agent.strip(),
+                                                             page_load_timeout=page_load_timeout,
+                                                             wait_after_last_request=wait_after_last_request
+                                                             ),
+                                         extractor=s_extractor)
 
         # check similarity
         if not result['error']:
@@ -322,23 +351,25 @@ ns2 = api.namespace('page', 'Page Extractor')
 @ns2.route('/extract')
 class PageExtractorResource(Resource):
     """Extract content from crawled web pages"""
-    @api.doc(params={'urls': 'The urls to be extracted content (If many urls, separate by comma)',
-                     'unit': 'Unit of ngram, support value are word or character, default is `word`',
-                     'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
-                     'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)',
-                     'extractor': 'The name of extractor to be used, currently support `%s`, default `%s`' %
-                                  (', '.join(list_extractor), list_extractor[0]),
-                     'selector_type': 'The name of selector type to be used, currently support `%s`, default is `%s`, '
-                                      'if the extractor name is `selective`, you must specify the '
-                                      '`selector` and `selector_type` (default is `css`)' %
-                                  (', '.join(list_selector_type), list_selector_type[0]),
-                     'selector': 'If extractor is `selective`, you must specify the `selector` element',
-                     'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0],
-                     'cache': 'Cache result for later use faster (integer), `0` is cache disabled, '
-                              '`others` is cache enabled. Default is non-cache',
-                     'expire_time': 'Expire time for cache (second), only effect when cache enabled. '
-                                    'Default is `604800` seconds (7 days)'
-                     }
+
+    @api.doc(params=dict({'urls': 'The urls to be extracted content (If many urls, separate by comma)',
+                          'unit': 'Unit of ngram, support value are word or character, default is `word`',
+                          'min_ngram': 'Minimum length of ngram elements, default is 1 (minimum is 1)',
+                          'max_ngram': 'Maximum length of ngram elements, default is 1 (maximum is 20)',
+                          'extractor': 'The name of extractor to be used, currently support `%s`, default `%s`' %
+                                       (', '.join(list_extractor), list_extractor[0]),
+                          'selector_type': 'The name of selector type to be used, currently support `%s`, '
+                                           'default is `%s`, '
+                                           'if the extractor name is `selective`, you must specify the '
+                                           '`selector` and `selector_type` (default is `css`)' %
+                                           (', '.join(list_selector_type), list_selector_type[0]),
+                          'selector': 'If extractor is `selective`, you must specify the `selector` element',
+                          'user_agent': "The 'User-Agent' of crawler, default is `%s`" % user_agents[0],
+                          'cache': 'Cache result for later use faster (integer), `0` is cache disabled, '
+                                   '`others` is cache enabled. Default is non-cache',
+                          'expire_time': 'Expire time for cache (second), only effect when cache enabled. '
+                                         'Default is `604800` seconds (7 days)'
+                          }, **crawler_cluster_options)
              )
     @api.response(200, 'Success', model='page_extractor_response')
     def post(self):
@@ -370,7 +401,12 @@ class PageExtractorResource(Resource):
             s_extractor.selector = selector.strip()
 
         user_agent = request.values.get('user_agent', user_agents[0])
-        s_crawler = PageCrawler(user_agent=user_agent)
+        page_load_timeout = request.values.get('page_load_timeout', page_load_timeout_default)
+        wait_after_last_request = request.values.get('wait_after_last_request', wait_after_last_request_default)
+        s_crawler = PageCrawler(user_agent=user_agent.strip(),
+                                page_load_timeout=page_load_timeout,
+                                wait_after_last_request=wait_after_last_request)
+
         cache = int(request.values.get('cache', 0))
         if cache != 0:
             expire_time = int(request.values.get('expire_time', 604800))  # Seconds = 7 days
@@ -411,7 +447,6 @@ content_sim_response = api.model('content_sim_response', {
     ])
 })
 
-
 ns3 = api.namespace('content', 'Content Similarity')
 
 
@@ -434,6 +469,7 @@ def get_similarity_checker(name):
 @ns3.route('/similarity')
 class ContentSimilarityResource(Resource):
     """Check similarity between content"""
+
     @api.doc(params={'content_1': 'Content to be checked', 'content_2': 'Another content to be checked',
                      'distance_metrics': 'Distance metrics to be used (currently support %s), if empty, show all '
                                          'distance metrics result, if many, separate by comma.'
@@ -475,6 +511,7 @@ class ContentSimilarityResource(Resource):
 @ns3.route('/cross-similarity')
 class ContentCrossSimilarityResource(Resource):
     """Check similarity between content"""
+
     @api.doc(params={'content_1': 'Content to be checked', 'content_2': 'Another content to be checked',
                      'content_3': 'Another content to be checked',
                      'distance_metrics': 'Distance metrics to be used (currently support %s), if empty, show all '
@@ -535,6 +572,7 @@ def cal_distances(content_1, content_2, selected_dm):
                                        (dm_name, ', '.join(distance_metrics))})
 
     return distances
+
 
 if __name__ == '__main__':
     # app.run(debug=True, host='107.170.109.238', port=8888)

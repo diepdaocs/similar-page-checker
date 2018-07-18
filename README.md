@@ -11,6 +11,7 @@ Mainly, we have 4 modules: Page Crawler, Page Extractor, Similarity Checker and 
 
 # Technologies
 - Python 2.7
+- Flash
 
 # Development
 Install python libraries for Ubuntu
@@ -39,22 +40,29 @@ curl -fsSL get.docker.com -o get-docker.sh && sudo sh get-docker.sh
 ```shell
 docker swarm init
 ```
-- [Optional] add more node to swarm cluster
+- [Optional] Add more node to swarm cluster
 ```shell
 docker swarm join --token [TOKEN] [MASTER_HOST:PORT]
 ```
-- Deploy app: [Web + Redis + Monitor/Visualizer](docker-compose.yml)
+- Update [configs](docker-compose.yml):
+```shell
+vi docker-compose.yml
+# Update `CRAWLER_URL`, `CRAWLER_ACCESS_KEY`, `services.web.deploy.replicas`: scaling web/api to a numnber of instances
+# Update web/api port, default is `8888`
+```
+- Deploy services: Web + Redis + Monitor
 ```shell
 docker stack deploy -c docker-compose.yml sim-check
 ```
 
 - Useful commands
 ```shell
-docker service ls
-docker service logs -f sim-check_web
-docker stack ps sim-check
-docker stack rm sim-check
-docker node ls
+docker service ls # list all services
+docker service logs -f sim-check_web # wiew service logs
+docker stack ps sim-check # view all container/process of sim-check
+docker stack rm sim-check # removing sim-check
+docker node ls # list all swarn cluster
+docker stack deploy -c docker-compose.yml sim-check # update service
 ```
 ## Using standalone docker container
 - Start redis
@@ -64,12 +72,14 @@ docker run -d --name redis -p 6379:6379 redis
 ```
 - Start web app (UI + RestAPI)
 
-Note: remember to update `REDIS_HOST`
+Note: remember to update `CRAWLER_URL`, `CRAWLER_ACCESS_KEY`, `REDIS_HOST`
 ```shell
 docker rm sim-check
 docker run -d \
            --name sim-check \
            -p 8888:8888 \
+           -e CRAWLER_URL=''
+           -e CRAWLER_ACCESS_KEY=''
            -e REDIS_HOST=192.168.1.118 \
            -e REDIS_PORT=6379 \
            -v `pwd`:/code \
@@ -79,10 +89,10 @@ docker run -d \
 
 - Useful commands
 ```shell
-docker ps
-docker logs -f sim-check
-docker stop sim-check
-docker start sim-check
-docker restart sim-check
-docker rm sim-check
+docker ps # list all containers
+docker logs -f sim-check # view container sim-check logs
+docker stop sim-check # stop container/process sim-check
+docker start sim-check # start container sim-check
+docker restart sim-check # restart container sim-check
+docker rm sim-check # remove container sim-check
 ```
