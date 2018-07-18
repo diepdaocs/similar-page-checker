@@ -1,8 +1,4 @@
-Web pages similarity checking
-
-[TOC]
-
-# Overview
+# Web pages similarity checking
 Mainly, we have 4 modules: Page Crawler, Page Extractor, Similarity Checker and Web Service
 
 * Page Crawler: Crawl html content of web page. Currently, we use python [`requests`](https://github.com/kennethreitz/requests) library.
@@ -11,8 +7,8 @@ Mainly, we have 4 modules: Page Crawler, Page Extractor, Similarity Checker and 
 * Web Service: Build RESTful api services. Currently, we use python [flask](http://flask.pocoo.org/) (a micro web framework) and [Swagger UI](http://swagger.io/) for presenting API documents.
 
 # Technologies
-- Python 2.7
-- Flash
+* Python 2.7
+* Flash
 
 # Development
 Install python libraries for Ubuntu
@@ -29,8 +25,8 @@ Config IDE (e.g Pycharm) using created python `venv`: Go to `Preference` -> `Pro
 
 # Deployment
 There 2 options:
-- Docker swarm cluster (recommended): support scaling application, load balancing
-- Standalone docker container
+* Docker swarm cluster (recommended): support scaling application, load balancing
+* Standalone docker container
 
 Install docker: for more options, please refer to [official page](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
 ```shell
@@ -69,14 +65,12 @@ docker stack deploy -c docker-compose.yml sim-check # update service
 ## Option 2: Using standalone docker container
 - Start redis
 ```shell
-docker rm redis
 docker run -d --name redis -p 6379:6379 redis
 ```
 - Start web app (UI + RestAPI)
 
 Note: remember to update `CRAWLER_URL`, `CRAWLER_ACCESS_KEY`, `REDIS_HOST`
 ```shell
-docker rm sim-check
 docker run -d \
            --name sim-check \
            -p 8888:8888 \
