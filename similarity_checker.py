@@ -25,8 +25,8 @@ def tokenize_and_normalize_content(content, unit='word', min_ngram=1, max_ngram=
         max_ngram = 20
     if min_ngram < 1:
         min_ngram = 1
-    if min_ngram > max_ngram:
-        min_ngram = max_ngram
+    if max_ngram < min_ngram:
+        max_ngram = min_ngram
     if unit not in ['word', 'character']:
         unit = 'word'
 
