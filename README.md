@@ -43,6 +43,8 @@ cd webpages-duplicated-checking
 - Init docker swarm cluster: this machine will be the `master node`
 ```shell
 docker swarm init
+# Or with --advertise-addr
+docker swarm init --advertise-addr [IP_ADDRESS]
 ```
 - [Optional] Add more node to swarm cluster
 ```shell
@@ -62,12 +64,15 @@ docker stack deploy -c docker-compose.yml sim-check
 
 - Useful commands
 ```shell
-docker service ls # list all services
-docker service logs -f sim-check_web # wiew service logs
-docker stack ps sim-check # view all container/process of sim-check
-docker stack rm sim-check # removing sim-check
-docker node ls # list all swarn cluster
+docker service ls   # list all services
+docker service logs -f sim-check_web    # wiew service logs
+docker stack ps sim-check   # view all container/process of sim-check
+docker stack rm sim-check   # removing sim-check
+docker node ls  # list all swarn cluster
 docker stack deploy -c docker-compose.yml sim-check # update service
+docker swarm leave --force  # leave current node from Swarm cluster
+docker stack ls    # list stacks or apps
+docker inspect <task or container>      # inspect task or container
 ```
 ## Option 2: Using standalone docker container
 - Start redis
@@ -92,10 +97,10 @@ docker run -d \
 
 - Useful commands
 ```shell
-docker ps # list all containers
-docker logs -f sim-check # view container sim-check logs
-docker stop sim-check # stop container/process sim-check
-docker start sim-check # start container sim-check
-docker restart sim-check # restart container sim-check
-docker rm sim-check # remove container sim-check
+docker ps   # list all containers
+docker logs -f sim-check    # view container sim-check logs
+docker stop sim-check   # stop container/process sim-check
+docker start sim-check  # start container sim-check
+docker restart sim-check    # restart container sim-check
+docker rm sim-check     # remove container sim-check
 ```
