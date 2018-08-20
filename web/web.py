@@ -81,14 +81,10 @@ def cross_check_sim():
 
     df = df.fillna('')
     # Check required fields
-    require_fields = ['content1', 'content2', 'content3']
-    missing_fields = []
-    for field in require_fields:
-        if field not in df:
-            missing_fields.append(field)
-    if missing_fields:
-        return render_template('message.html', message='ERROR: File "%s" must contain "%s" field(s)'
-                                                       % (file_text.filename, ', '.join(missing_fields)))
+    min_no_field = 2
+    if len(df.columns) < min_no_field:
+        return render_template('message.html', message='ERROR: File "%s" must contain at least %d fields'
+                                                       % (file_text.filename, min_no_field))
     output_file = '%s_result-for-job_%s.csv' % (file_text_name, job_id)
     thread = Thread(target=process_job, args=(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file))
     thread.setDaemon(True)
@@ -130,16 +126,29 @@ def job_info(job_id):
     return render_template('job.html', job_id=job_id, output_file=output_file)
 
 
+def gen_distance_cols(columns):
+    distance_cols = []
+    no_col = len(columns)
+    for i in range(no_col):
+        for j in range(i + 1, no_col):
+            distance_cols.append('Distance-%s-%s' % (columns[i], columns[j]))
+
+    return distance_cols
+
+
 def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file):
-    # sim_checker = get_similarity_checker(selected_dm)
-    df['distance12'] = ''
-    df['distance23'] = ''
-    df['distance13'] = ''
+    columns = df.columns
+    distance_cols = gen_distance_cols(columns)
+
+    for col in distance_cols:
+        df[col] = ''
+
     redis.hset(job_id, 'size', len(df.index))
     redis.hset(job_id, 'start', time.time())
     redis.hset(job_id, 'file', output_file)
     redis.hset(job_id, 'finish', 0)
-    tasks = [(row['content1'], row['content2'], row['content3'], selected_dm, unit, min_ngram, max_ngram, job_id)
+
+    tasks = [(tuple(row[col] for col in columns), selected_dm, unit, min_ngram, max_ngram, job_id)
              for idx, row in df.iterrows()]
 
     pool = Pool(cpu_count())
@@ -147,9 +156,8 @@ def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file
     pool.close()
     pool.terminate()
     for idx, row in df.iterrows():
-        df.loc[idx, 'distance12'] = result[idx]['distance12']
-        df.loc[idx, 'distance23'] = result[idx]['distance23']
-        df.loc[idx, 'distance13'] = result[idx]['distance13']
+        for dist_idx, col in enumerate(distance_cols):
+            df.loc[idx, col] = result[idx][dist_idx]
 
     try:
         df.to_csv(os.path.join(app.config['UPLOAD_FOLDER'], output_file), index=False, sep='\t', encoding='utf-8')
@@ -162,23 +170,23 @@ def cross_check_similarity_wrapper(args):
     return cross_check_similarity(*args)
 
 
-def cross_check_similarity(content_1, content_2, content_3, selected_dm, unit, min_ngram, max_ngram, job_id):
+def cross_check_similarity(contents, selected_dm, unit, min_ngram, max_ngram, job_id):
     sim_checker = get_similarity_checker(selected_dm)
-    tokens_1 = tokenize_and_normalize_content(content_1, unit=unit,
-                                              min_ngram=min_ngram,
-                                              max_ngram=max_ngram)
 
-    tokens_2 = tokenize_and_normalize_content(content_2, unit=unit, min_ngram=min_ngram,
-                                              max_ngram=max_ngram)
-    tokens_3 = tokenize_and_normalize_content(content_3, unit=unit, min_ngram=min_ngram,
-                                              max_ngram=max_ngram)
+    content_tokens = []
+    for content in contents:
+        content_tokens.append(tokenize_and_normalize_content(
+            content, unit=unit, min_ngram=min_ngram, max_ngram=max_ngram))
+
     redis.hincrby(job_id, 'progress')
 
-    return {
-        'distance12': sim_checker(tokens_1, tokens_2),
-        'distance23': sim_checker(tokens_2, tokens_3),
-        'distance13': sim_checker(tokens_1, tokens_3),
-    }
+    no_col = len(contents)
+    distances = []
+    for i in range(no_col):
+        for j in range(i + 1, no_col):
+            distances.append(sim_checker(content_tokens[i], content_tokens[j]))
+
+    return distances
 
 
 @app.route('/download/<filename>')
