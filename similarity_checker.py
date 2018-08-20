@@ -1,5 +1,7 @@
 import math
 from fuzzywuzzy import fuzz
+from nltk.stem.porter import PorterStemmer
+
 from util.utils import get_logger
 from elasticsearch.helpers import bulk
 import uuid
@@ -11,6 +13,7 @@ from simhash import Simhash
 
 
 tokenize = ToktokTokenizer().tokenize
+stemmer = PorterStemmer()
 
 
 def pre_process_urls(urls):
@@ -38,7 +41,7 @@ def tokenize_and_normalize_content(content, unit='word', min_ngram=1, max_ngram=
     # pre tokenize
     words = []
     for word in tokenize(content):
-        word = word.strip(string.punctuation).lower()
+        word = normalize(word)
         if not word:
             continue
         words.append(word)
@@ -56,6 +59,10 @@ def tokenize_and_normalize_content(content, unit='word', min_ngram=1, max_ngram=
                 result.append(''.join(e))
 
     return result
+
+
+def normalize(word):
+    return stemmer.stem(word.strip(string.punctuation).lower())
 
 
 def cosine_similarity(tokens_1, tokens_2):
