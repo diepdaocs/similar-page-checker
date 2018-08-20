@@ -18,8 +18,8 @@ class PageCrawlerCluster(object):
         self.user_agent = user_agent
         self.redis = None
         self.expire_time = None
-        self.cluster = os.environ['CRAWLER_URL']
-        self.access_key = os.environ['CRAWLER_ACCESS_KEY']
+        self.cluster = os.environ.get('CRAWLER_URL', 'http://174.138.126.116:3000/execute')
+        self.access_key = os.environ.get('CRAWLER_ACCESS_KEY', 'cHVwcmVuZGVyX3Nlb2NsYXJpdHk=')
         self.page_load_timeout = page_load_timeout
         self.wait_after_last_request = wait_after_last_request
 

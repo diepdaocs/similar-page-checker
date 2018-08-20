@@ -9,8 +9,8 @@ services:
     environment:
       - PYTHONPATH=/code
       - REDIS_HOST=redis
-      - CRAWLER_URL=
-      - CRAWLER_ACCESS_KEY=
+      - CRAWLER_URL=http://174.138.126.116:3000/execute
+      - CRAWLER_ACCESS_KEY=cHVwcmVuZGVyX3Nlb2NsYXJpdHk=
     command: gunicorn -k tornado -w 2 -b 0.0.0.0:8888 main:app --max-requests 10000
     volumes:
       - .:/code
