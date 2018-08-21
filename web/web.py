@@ -81,7 +81,7 @@ def cross_check_sim():
 
     df = df.fillna('')
     limit_no_of_rows = 300000
-    if len(df) > limit_no_of_rows:
+    if len(df.index) > limit_no_of_rows:
         return render_template('message.html', message='ERROR: The number of rows in "%s" exceed %d'
                                                        % (file_text.filename, limit_no_of_rows))
 
