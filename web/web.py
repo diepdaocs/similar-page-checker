@@ -69,7 +69,7 @@ def cross_check_sim():
         if is_excel_file(file_text.filename):
             df = pd.read_excel(file_text_path, encoding='utf-8')
         else:
-            df = pd.read_csv(file_text_path, delimiter='\t', encoding='utf-8')
+            df = pd.read_csv(file_text_path, delimiter=',', encoding='utf-8')
     except UnicodeDecodeError, e:
         logger.exception(e)
         return render_template('message.html', message='ERROR: Your input file "%s" must be in UTF-8 encoding'
@@ -80,6 +80,11 @@ def cross_check_sim():
                                                        % (file_text.filename, e.message))
 
     df = df.fillna('')
+    limit_no_of_rows = 300000
+    if len(df) > limit_no_of_rows:
+        return render_template('message.html', message='ERROR: The number of rows in "%s" exceed %d'
+                                                       % (file_text.filename, limit_no_of_rows))
+
     # Check required fields
     min_no_field = 2
     if len(df.columns) < min_no_field:

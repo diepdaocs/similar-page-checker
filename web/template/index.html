@@ -31,15 +31,33 @@
     </div>
     <div class="form-group">
         <div class="col-sm-offset-2 col-sm-10">
-            <input type="file" name="file_text" class="form-control" required>
-            <i>CSV (TAB delimiter) or EXCEL file (UTF-8 encoding), must contain "content1", "content2", "content3" fields</i>
+            <input type="file" name="file_text" id="file_text" class="form-control" required>
+            <i>CSV (TAB delimiter) or EXCEL file (UTF-8 encoding)</i>
         </div>
     </div>
     <div class="form-group">
         <div class="col-sm-offset-2 col-sm-10">
-            <input type="submit" value="Submit" class="btn btn-default">
+            <input id="submit" type="submit" value="Submit" class="btn btn-default">
         </div>
     </div>
 </form>
 
+{% endblock %}
+{% block js %}
+<script>
+    $('#submit').click(function(e) {
+        // Check whether browser fully supports all File API
+        if (window.File && window.FileReader && window.FileList && window.Blob) {
+            var fsize = $('#file_text')[0].files[0].size;
+            var limit_no_of_mb = 1024
+            if(fsize > limit_no_of_mb * 1024 * 1024) {
+                alert("Uploaded file is too big, exceed 1GB. Please split into smaller file before submitting!");
+                e.preventDefault()
+                return false;
+            }
+        } else {
+            alert("Please upgrade your browser, because your current browser lacks some new features we need!");
+        }
+    });
+</script>
 {% endblock %}
