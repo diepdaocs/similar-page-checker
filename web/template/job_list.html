@@ -15,7 +15,11 @@
 	    var file_url = {{ url_for('download_file', filename='') }};
 		var job_html = '<a href="#" class="list-group-item">';
     	job_html    += '	<h4 class="list-group-item-heading">Job id: {0}</h4>'.format(job.id);
-    	if (job.complete < 100) {
+    	if (!job.ok) {
+    	    // Job has some problem, show error to user
+    	    job_html += '<p>ERROR: <code>{0}</code></p>'.format(job.error);
+    	}
+    	else if (job.complete < 100) {
     		// Show progress bar
     		job_html    += '	<div class="progress">';
         	job_html    += '		<div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="{0}" aria-valuemin="0" aria-valuemax="{1}" style="width:{2}%">'.format(job.progress, job.size, job.complete);

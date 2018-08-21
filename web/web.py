@@ -87,7 +87,9 @@ def cross_check_sim():
 
     # Check required fields
     min_no_field = 2
-    if len(df.columns) < min_no_field:
+    df_columns = list(df.columns.values)
+    if len(df_columns) < min_no_field:
+        logger.debug('Data frame columns: ' + ', '.join(df_columns))
         return render_template('message.html', message='ERROR: File "%s" must contain at least %d fields'
                                                        % (file_text.filename, min_no_field))
     output_file = '%s_result-for-job_%s.csv' % (file_text_name, job_id)
@@ -122,6 +124,7 @@ def update_jobs():
         jb['start'] = datetime.fromtimestamp(float(jb['start'])).strftime('%Y-%m-%d %H:%M:%S')
         jb['complete'] = round(float(jb.get('progress', 0)) / float(jb['size']) * 100, 0) if float(jb['size']) else 0
         jb['finish'] = int(jb['finish']) == 1
+        jb['ok'] = jb.get('ok') is None or jb.get('ok') == 'true'
     return jsonify(jobs=jobs)
 
 
@@ -142,7 +145,7 @@ def gen_distance_cols(columns):
 
 
 def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file):
-    columns = df.columns
+    columns = list(df.columns.values)
     distance_cols = gen_distance_cols(columns)
 
     for col in distance_cols:
@@ -152,22 +155,32 @@ def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file
     redis.hset(job_id, 'start', time.time())
     redis.hset(job_id, 'file', output_file)
     redis.hset(job_id, 'finish', 0)
+    redis.hset(job_id, 'ok', 'true')
+    redis.hset(job_id, 'error', '')
 
     tasks = [(tuple(row[col] for col in columns), selected_dm, unit, min_ngram, max_ngram, job_id)
              for idx, row in df.iterrows()]
 
-    pool = Pool(cpu_count())
-    result = pool.map(cross_check_similarity_wrapper, tasks)
-    pool.close()
-    pool.terminate()
-    for idx, row in df.iterrows():
-        for dist_idx, col in enumerate(distance_cols):
-            df.loc[idx, col] = result[idx][dist_idx]
-
     try:
+        pool = Pool(cpu_count())
+        result = pool.map(cross_check_similarity_wrapper, tasks)
+        pool.close()
+        pool.terminate()
+
+        for idx, row in df.iterrows():
+            for dist_idx, col in enumerate(distance_cols):
+                df.loc[idx, col] = result[idx][dist_idx]
+
         df.to_csv(os.path.join(app.config['UPLOAD_FOLDER'], output_file), index=False, sep='\t', encoding='utf-8')
         redis.hset(job_id, 'finish', 1)
+
+    except TypeError as e:
+        redis.hset(job_id, 'ok', 'false')
+        redis.hset(job_id, 'error', 'Input file should be in UTF-8 format, detail: "%s"' % e.message)
+        logger.exception(e)
     except Exception as e:
+        redis.hset(job_id, 'ok', 'false')
+        redis.hset(job_id, 'error', '%s' % e.message)
         logger.exception(e)
 
 
