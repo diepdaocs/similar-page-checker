@@ -45,4 +45,8 @@ def get_logger(name, level=logger_level, log_file=os.path.join(logs_dir, '%s.log
 def get_unicode(text):
     if isinstance(text, unicode):
         return text
+
+    if isinstance(text, float) or isinstance(text, int) or isinstance(text, long):
+        return str(text)
+
     return unicode(text, encoding='utf-8', errors='ignore')

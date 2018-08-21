@@ -5,4 +5,5 @@ logs
 *.xls
 *.xlsx
 *.txt
+*.utf8
 venv

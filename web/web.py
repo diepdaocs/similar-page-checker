@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename, redirect
 from api import get_similarity_checker
 from app import app
 from similarity_checker import tokenize_and_normalize_content
-from util.utils import get_logger
+from util.utils import get_logger, get_unicode
 
 # This is the path to the upload directory
 app.config['UPLOAD_FOLDER'] = 'web/upload'
@@ -28,6 +28,22 @@ logger = get_logger(__name__)
 
 redis = StrictRedis(
     db=1, host=os.environ.get('REDIS_HOST', 'localhost'), port=os.environ.get('REDIS_PORT', 6379))
+
+
+def convert_to_utf8(source_file_path):
+    result_file_path = source_file_path + '.utf8'
+    import codecs
+    block_size = 1048576  # or some other, desired size in bytes
+    with codecs.open(source_file_path, "r", "utf-8") as source:
+        with codecs.open(result_file_path, "w", "utf-8") as target_file:
+            while True:
+                contents = source.read(block_size)
+                if not contents:
+                    break
+                target_file.write(contents)
+
+    os.remove(source_file_path)
+    return result_file_path
 
 
 # For a given file, return whether it's an allowed type or not
@@ -65,11 +81,12 @@ def cross_check_sim():
     file_text_path = os.path.join(app.config['UPLOAD_FOLDER'], '%s_input-with-job_%s%s' %
                                   (file_text_name, job_id, file_com[1]))
     file_text.save(file_text_path)
+    utf8_file_text_path = convert_to_utf8(file_text_path)
     try:
         if is_excel_file(file_text.filename):
-            df = pd.read_excel(file_text_path, encoding='utf-8')
+            df = pd.read_excel(utf8_file_text_path, encoding='utf-8')
         else:
-            df = pd.read_csv(file_text_path, delimiter='\t', encoding='utf-8')
+            df = pd.read_csv(utf8_file_text_path, delimiter='\t', encoding='utf-8')
     except UnicodeDecodeError, e:
         logger.exception(e)
         return render_template('message.html', message='ERROR: Your input file "%s" must be in UTF-8 encoding'
@@ -158,10 +175,10 @@ def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file
     redis.hset(job_id, 'ok', 'true')
     redis.hset(job_id, 'error', '')
 
-    tasks = [(tuple(row[col] for col in columns), selected_dm, unit, min_ngram, max_ngram, job_id)
-             for idx, row in df.iterrows()]
-
     try:
+        tasks = [(tuple(get_unicode(row[col]) for col in columns), selected_dm, unit, min_ngram, max_ngram, job_id)
+                 for idx, row in df.iterrows()]
+
         pool = Pool(cpu_count())
         result = pool.map(cross_check_similarity_wrapper, tasks)
         pool.close()
@@ -174,9 +191,9 @@ def process_job(df, selected_dm, unit, min_ngram, max_ngram, job_id, output_file
         df.to_csv(os.path.join(app.config['UPLOAD_FOLDER'], output_file), index=False, sep='\t', encoding='utf-8')
         redis.hset(job_id, 'finish', 1)
 
-    except TypeError as e:
+    except UnicodeEncodeError as e:
         redis.hset(job_id, 'ok', 'false')
-        redis.hset(job_id, 'error', 'Input file should be in UTF-8 format, detail: "%s"' % e.message)
+        redis.hset(job_id, 'error', 'Input file should be in UTF-8 format, detail: %s' % e)
         logger.exception(e)
     except Exception as e:
         redis.hset(job_id, 'ok', 'false')
