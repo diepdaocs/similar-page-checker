@@ -81,8 +81,8 @@ def cross_check_sim():
     file_text_path = os.path.join(app.config['UPLOAD_FOLDER'], '%s_input-with-job_%s%s' %
                                   (file_text_name, job_id, file_com[1]))
     file_text.save(file_text_path)
-    utf8_file_text_path = convert_to_utf8(file_text_path)
     try:
+        utf8_file_text_path = convert_to_utf8(file_text_path)
         if is_excel_file(file_text.filename):
             df = pd.read_excel(utf8_file_text_path, encoding='utf-8')
         else:
@@ -152,6 +152,7 @@ def job_info(job_id):
 
 
 def gen_distance_cols(columns):
+    columns = [col for col in columns if not col.startswith('Distance-')]
     distance_cols = []
     no_col = len(columns)
     for i in range(no_col):
