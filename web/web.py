@@ -82,11 +82,10 @@ def cross_check_sim():
                                   (file_text_name, job_id, file_com[1]))
     file_text.save(file_text_path)
     try:
-        utf8_file_text_path = convert_to_utf8(file_text_path)
         if is_excel_file(file_text.filename):
-            df = pd.read_excel(utf8_file_text_path, encoding='utf-8')
+            df = pd.read_excel(file_text_path, encoding='utf-8')
         else:
-            df = pd.read_csv(utf8_file_text_path, delimiter='\t', encoding='utf-8')
+            df = pd.read_csv(file_text_path, delimiter='\t', encoding='utf-8')
     except UnicodeDecodeError, e:
         logger.exception(e)
         return render_template('message.html', message='ERROR: Your input file "%s" must be in UTF-8 encoding'
